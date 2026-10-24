@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crochet.Amal | كروشيه مصنوع يدويًا</title>
+<meta name="description" content="Crochet.Amal: حقائب وإكسسوارات وهدايا كروشيه مصنوعة يدويًا. اطلبي عبر واتساب.">
+<link rel="icon" href="assets/images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#products">تخطي إلى المنتجات</a>
+<header class="nav">
+  <a class="brand" href="#top" aria-label="Crochet.Amal"><img src="assets/images/favicon.png" alt="" width="36" height="36"><bdi dir="ltr" class="wordmark">Crochet.Amal</bdi></a>
+  <nav aria-label="التنقل الرئيسي">
+    <a href="#products">المنتجات</a><a href="#categories">الأقسام</a><a href="#why">لماذا يدوي؟</a><a href="#reviews">آراء</a><a href="#contact">تواصل</a>
+  </nav>
+</header>
+<main id="top">
+  <section class="hero">
+    <div class="hero-text">
+      <p class="tag">فعل يدوي بحب <span aria-hidden="true">♥</span></p>
+      <h1 id="hTitle"></h1>
+      <p id="hText"></p>
+      <a class="btn wa" id="hCta" target="_blank" rel="noopener"></a>
+    </div>
+    <figure class="hero-img"><img id="hImg" alt="حقيبة كروشيه من Crochet.Amal" width="600" height="600"></figure>
+  </section>
+
+  <section id="categories" class="sec" aria-labelledby="catH">
+    <h2 id="catH">تسوّقي حسب القسم</h2>
+    <div class="chips" id="chips" role="group" aria-label="تصفية المنتجات"></div>
+  </section>
+
+  <section id="products" class="sec" aria-labelledby="prodH">
+    <h2 id="prodH">قطع من صنع أمال</h2>
+    <div class="grid" id="grid" aria-live="polite"></div>
+  </section>
+
+  <section id="why" class="sec soft" aria-labelledby="whyH">
+    <h2 id="whyH">لماذا نختار اليدوي؟</h2>
+    <div class="why" id="why"></div>
+  </section>
+
+  <section id="reviews" class="sec" aria-labelledby="revH">
+    <h2 id="revH">ماذا تقول زبوناتنا</h2>
+    <div class="reviews" id="reviews"></div>
+  </section>
+
+  <section id="contact" class="sec contact" aria-labelledby="conH">
+    <h2 id="conH">تواصلي معنا</h2>
+    <p id="cText"></p>
+    <a class="btn wa" id="cCta" target="_blank" rel="noopener">راسلينا على واتساب <bdi dir="ltr" id="cPhone"></bdi></a>
+  </section>
+</main>
+<footer class="foot">
+  <div class="social" id="social"></div>
+  <p><bdi dir="ltr">Crochet.Amal</bdi> © <span id="yr"></span> · فعل يدوي بحب</p>
+  <button class="adm" id="admBtn" aria-label="دخول المسؤولة">·</button>
+</footer>
+
+<dialog id="loginDlg" class="dlg">
+  <form method="dialog" id="loginForm">
+    <h2>دخول المسؤولة</h2>
+    <label for="pw">كلمة المرور</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <p class="err" id="loginErr" role="alert"></p>
+    <div class="row"><button type="button" class="btn ghost" data-close>إلغاء</button><button class="btn" id="loginGo">دخول</button></div>
+  </form>
+</dialog>
+
+<div id="admin" class="admin" hidden>
+  <div class="adm-bar">
+    <strong>لوحة التحكم</strong>
+    <span class="adm-actions">
+      <button class="btn sm ghost" id="aPrev">معاينة</button>
+      <button class="btn sm" id="aPub">نشر التغييرات</button>
+      <button class="btn sm ghost" id="aExp">تصدير JSON</button>
+      <label class="btn sm ghost" for="aImp">استيراد JSON</label><input type="file" id="aImp" accept="application/json" hidden>
+      <button class="btn sm ghost" id="aReset">استرجاع الأصل</button>
+      <button class="btn sm ghost" id="aOut">خروج</button>
+    </span>
+  </div>
+  <p class="notice">التغييرات تُحفظ في هذا المتصفح فقط. للنشر لكل الزوار صدّري JSON واستبدلي <bdi dir="ltr">data/products.json</bdi> (انظري README).</p>
+  <div class="adm-body">
+    <div><button class="btn sm" id="aAdd">+ منتج جديد</button><ul class="alist" id="aList"></ul></div>
+    <form class="aform" id="aForm" hidden novalidate>
+      <h3 id="fTitle"></h3>
+      <label for="fName">اسم المنتج</label><input id="fName" maxlength="80" required>
+      <label for="fDesc">الوصف</label><textarea id="fDesc" rows="3" maxlength="300" required></textarea>
+      <label for="fPrice">الثمن (درهم)</label><input id="fPrice" type="number" min="1" step="1" required>
+      <label for="fCat">القسم</label><select id="fCat"></select>
+      <label for="fImg">رابط الصورة</label><input id="fImg" dir="ltr" placeholder="https://... أو assets/images/name.jpg" required>
+      <img id="fPrev" class="fprev" alt="معاينة الصورة" width="120" height="120">
+      <label class="chk"><input type="checkbox" id="fVis"> ظاهر في المتجر</label>
+      <p class="err" id="fErr" role="alert"></p>
+      <div class="row"><button type="button" class="btn ghost" id="fCancel">إلغاء</button><button class="btn" id="fSave">حفظ المنتج</button></div>
+    </form>
+  </div>
+  <div id="aPreview" class="preview" hidden><h3>معاينة المتجر (لم تُنشر بعد)</h3><div class="grid" id="pGrid"></div></div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="js/app.js"></script>
+</body>
+</html>
