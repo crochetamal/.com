@@ -80,7 +80,6 @@ function renderSite() {
   $('reviews').replaceChildren(...s.testimonials.map((t) => el('blockquote', {}, [el('p', {}, [t.text]), el('footer', {}, [`${t.name}، ${t.city}`])])));
   const names = { instagram: 'إنستغرام', facebook: 'فيسبوك', tiktok: 'تيك توك' };
   $('social').replaceChildren(...Object.entries(s.social).map(([k, u]) => el('a', { href: u, target: '_blank', rel: 'noopener' }, [names[k] || k])));
-  $('yr').textContent = new Date().getFullYear();
 }
 
 /* ---------- admin ---------- */

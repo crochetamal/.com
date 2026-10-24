@@ -54,8 +54,8 @@ blockquote p{margin:0 0 10px}blockquote footer{color:var(--rose-d);font-weight:7
 .contact{text-align:center}.contact p{max-width:34em;margin:0 auto 20px}
 .foot{background:var(--cocoa);color:var(--cream);text-align:center;padding:30px 5vw;position:relative}
 .foot a{color:var(--cream);margin:0 10px;font-weight:500}
-.adm{position:absolute;inset-inline-end:8px;bottom:4px;background:none;border:0;color:var(--cocoa);opacity:.6;cursor:pointer;padding:6px 10px;font-size:1rem}
-.adm:hover,.adm:focus-visible{color:var(--cream);opacity:1}
+.adm{background:none;border:0;color:inherit;font:inherit;cursor:default;padding:0}
+.adm:focus-visible{outline-color:var(--cream)}
 .dlg{border:0;border-radius:var(--r);padding:24px;width:min(92vw,380px);background:var(--card);color:var(--ink)}
 .dlg::backdrop{background:rgba(58,36,27,.5)}
 .dlg h2{font-size:1.4rem}
