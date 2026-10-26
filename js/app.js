@@ -5,6 +5,34 @@ const SESSION = 'crochetAmal.admin';
 const PW_HASH = 'bb1b5ca296dc3ffab66629a6bb46eb7a44cab90dd8b18897244418a7ead55e07';
 const FALLBACK = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#efdfc8"/><text x="100" y="108" font-size="16" text-anchor="middle" fill="#5b2f1f" font-family="sans-serif">Crochet.Amal</text></svg>');
 const $ = (id) => document.getElementById(id);
+const FB = { on: false };
+async function fbInit() {
+  const cfg = window.FIREBASE_CONFIG; if (!cfg || !cfg.projectId) return;
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [app, fs, au] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js'), import(base + 'firebase-auth.js')]);
+  const a = app.initializeApp(cfg);
+  Object.assign(FB, { db: fs.getFirestore(a), auth: au.getAuth(a), fs, au, on: true });
+}
+async function fbLoad() {
+  const { collection, getDocs, query, orderBy } = FB.fs;
+  const snap = await getDocs(query(collection(FB.db, 'products'), orderBy('order')));
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+}
+async function fbSave(list) {
+  const { collection, getDocs, writeBatch, doc } = FB.fs;
+  const col = collection(FB.db, 'products'), old = await getDocs(col), b = writeBatch(FB.db), keep = new Set(list.map((p) => p.id));
+  old.docs.forEach((d) => { if (!keep.has(d.id)) b.delete(d.ref); });
+  list.forEach((p, i) => b.set(doc(col, p.id), { ...p, order: i }));
+  await b.commit();
+}
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), s = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  let q = 0.82, u = c.toDataURL('image/jpeg', q);
+  while (u.length > 240000 && q > 0.4) { q -= 0.1; u = c.toDataURL('image/jpeg', q); }
+  return u;
+}
 const state = { site: null, base: [], published: [], draft: [], filter: 'all', editing: null };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -91,9 +119,11 @@ function openAdmin() {
   state.draft = clone(state.published); state.editing = null;
   $('admin').hidden = false; document.body.style.overflow = 'hidden';
   $('aForm').hidden = true; $('aPreview').hidden = true; renderList();
+  if (FB.on) $('notice').textContent = 'متصل بـ Firebase: عند الضغط على «نشر التغييرات» تظهر التعديلات والصور لكل الزوار فورًا.';
   const sel = $('fCat'); sel.replaceChildren(...Object.entries(state.site.categories).map(([k, v]) => el('option', { value: k }, [v])));
 }
 function closeAdmin() {
+  if (FB.on) FB.au.signOut(FB.auth);
   sessionStorage.removeItem(SESSION); $('admin').hidden = true; document.body.style.overflow = '';
 }
 function renderList() {
@@ -123,7 +153,7 @@ function editForm(p) {
   $('fImg').value = p ? p.image : ''; $('fVis').checked = p ? p.visible : true; showPrev();
   $('fName').focus();
 }
-function validImgUrl(u) { return /^(https?:\/\/\S+|(\.\/)?[\w\-./%]+\.(jpe?g|png|webp|gif|svg|avif))$/i.test(u); }
+function validImgUrl(u) { return /^(https?:\/\/\S+|data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+\/=]+|(\.\/)?[\w\-./%]+\.(jpe?g|png|webp|gif|svg|avif))$/i.test(u); }
 function showPrev() {
   const u = $('fImg').value.trim(), i = $('fPrev');
   i.src = validImgUrl(u) ? u : FALLBACK;
@@ -137,8 +167,12 @@ function saveForm(e) {
   if (state.editing) Object.assign(state.editing, data); else state.draft.push({ id: 'p-' + Date.now().toString(36), ...data });
   $('aForm').hidden = true; renderList(); toast('تم حفظ المنتج في المسودة. اضغطي «نشر التغييرات».');
 }
-function publish() {
-  if (!confirm('نشر التغييرات في هذا المتصفح؟')) return;
+async function publish() {
+  if (!confirm(FB.on ? 'نشر التغييرات لكل الزوار؟' : 'نشر التغييرات في هذا المتصفح؟')) return;
+  if (FB.on) {
+    try { await fbSave(state.draft); } catch (e) { toast('فشل النشر: تأكدي من الاتصال ومن قواعد Firestore.', true); return; }
+    state.published = clone(state.draft); renderStore(); toast('تم النشر لكل الزوار فورًا.'); return;
+  }
   try { localStorage.setItem(KEY, JSON.stringify(state.draft)); } catch (e) { toast('تعذّر الحفظ: التخزين ممتلئ أو مُعطّل.', true); return; }
   state.published = clone(state.draft); renderStore(); toast('تم النشر في هذا المتصفح. صدّري JSON لنشرها للجميع.');
 }
@@ -157,22 +191,38 @@ async function importJson(e) {
   } catch (err) { toast('ملف غير صالح: ' + err.message, true); }
 }
 function resetAll() {
+  if (FB.on) {
+    if (!confirm('تحميل الكتالوج الأصلي (من الملف) في المسودة؟ لن يُنشر قبل الضغط على «نشر التغييرات».')) return;
+    state.draft = clone(state.base); $('aForm').hidden = true; renderList(); toast('تم تحميل الكتالوج الأصلي في المسودة.'); return;
+  }
   if (!confirm('حذف التعديلات المحفوظة والرجوع إلى المنتجات الأصلية؟')) return;
   localStorage.removeItem(KEY); state.published = clone(state.base); state.draft = clone(state.base);
   $('aForm').hidden = true; renderList(); renderStore(); toast('تم الرجوع إلى الكتالوج الأصلي.');
 }
 function wireAdmin() {
   const dlg = $('loginDlg');
-  $('admBtn').onclick = () => { $('pw').value = ''; $('loginErr').textContent = ''; dlg.showModal(); $('pw').focus(); };
+  $('admBtn').onclick = () => {
+    if (FB.on && FB.auth.currentUser) { openAdmin(); return; }
+    $('emW').hidden = !FB.on; $('pw').value = ''; $('loginErr').textContent = ''; dlg.showModal(); $('pw').focus(); };
   dlg.querySelector('[data-close]').onclick = () => dlg.close();
   $('loginForm').onsubmit = async (e) => {
     e.preventDefault();
+    if (FB.on) {
+      try { await FB.au.signInWithEmailAndPassword(FB.auth, $('em').value.trim(), $('pw').value); dlg.close(); openAdmin(); toast('مرحبًا أمال'); }
+      catch (err) { $('loginErr').textContent = 'البريد أو كلمة المرور غير صحيحة.'; }
+      return;
+    }
     if (!crypto.subtle) { $('loginErr').textContent = 'يتطلب الدخول اتصالًا آمنًا (https).'; return; }
     if ((await sha256($('pw').value)) === PW_HASH) { dlg.close(); sessionStorage.setItem(SESSION, '1'); openAdmin(); toast('مرحبًا أمال'); }
     else $('loginErr').textContent = 'كلمة المرور غير صحيحة.';
   };
   $('aAdd').onclick = () => editForm(null);
   $('fCancel').onclick = () => ($('aForm').hidden = true);
+  $('fFile').onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { $('fImg').value = await shrink(f); showPrev(); toast('تم تجهيز الصورة. اضغطي «حفظ المنتج».'); }
+    catch (err) { toast('تعذّر قراءة الصورة.', true); }
+  };
   $('aForm').onsubmit = saveForm; $('fImg').oninput = showPrev;
   $('fPrev').onerror = () => { if ($('fPrev').src !== FALLBACK) $('fPrev').src = FALLBACK; };
   $('aPrev').onclick = () => { const p = $('aPreview'); p.hidden = !p.hidden; if (!p.hidden) { fill($('pGrid'), state.draft, 'all'); p.scrollIntoView(); } };
@@ -191,7 +241,12 @@ async function init() {
     $('grid').replaceChildren(el('p', { className: 'empty' }, ['تعذّر تحميل البيانات. افتحي الموقع عبر رابط الاستضافة وليس كملف مباشر.']));
     return;
   }
-  state.published = load(); renderSite(); renderStore(); wireAdmin();
+  try { await fbInit(); } catch (e) { FB.on = false; }
+  if (FB.on) {
+    try { const l = await fbLoad(); state.published = l.length ? cleanProducts(l) : clone(state.base); }
+    catch (e) { state.published = clone(state.base); }
+  } else state.published = load();
+  renderSite(); renderStore(); wireAdmin();
   if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
 }
 init();

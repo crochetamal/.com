@@ -84,3 +84,5 @@ input:focus,select:focus,textarea:focus{border-color:var(--rose-d)}
 .toast{position:fixed;bottom:18px;inset-inline:0;margin:auto;width:max-content;max-width:90vw;background:var(--cocoa);color:#fff;padding:10px 20px;border-radius:999px;z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
 .toast.show{opacity:1}.toast.bad{background:#a3162a}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+#fImg{text-overflow:ellipsis}
