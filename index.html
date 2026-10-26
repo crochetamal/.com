@@ -53,56 +53,17 @@
   <section id="contact" class="sec contact" aria-labelledby="conH">
     <h2 id="conH">تواصلي معنا</h2>
     <p id="cText"></p>
+    <div class="ad-wrap"><div class="ad-box" id="adBox"><iframe id="adFrame" title="إعلان" width="728" height="90" scrolling="no" frameborder="0" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin" srcdoc="&lt;html&gt;&lt;body style='margin:0'&gt;&lt;script&gt;atOptions={'key':'7d6579859ccdb8c0df3a851f2ffb11ca','format':'iframe','height':90,'width':728,'params':{}};&lt;/script&gt;&lt;script src='https://www.highperformanceformat.com/7d6579859ccdb8c0df3a851f2ffb11ca/invoke.js'&gt;&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe></div><small class="ad-note">إعلان</small></div>
     <a class="btn wa" id="cCta" target="_blank" rel="noopener">راسلينا على واتساب <bdi dir="ltr" id="cPhone"></bdi></a>
   </section>
 </main>
 <footer class="foot">
   <div class="social" id="social"></div>
-  <p><bdi dir="ltr">Crochet.Amal</bdi> © <span id="yr"></span> · فعل يدوي بحب</p>
-  <button class="adm" id="admBtn" aria-label="دخول المسؤولة">·</button>
+  <p><bdi dir="ltr">Crochet.Amal</bdi> · <span>© 2026</span> · فعل يدوي بحب</p>
 </footer>
 
-<dialog id="loginDlg" class="dlg">
-  <form method="dialog" id="loginForm">
-    <h2>دخول المسؤولة</h2>
-    <label for="pw">كلمة المرور</label>
-    <input type="password" id="pw" autocomplete="current-password" required>
-    <p class="err" id="loginErr" role="alert"></p>
-    <div class="row"><button type="button" class="btn ghost" data-close>إلغاء</button><button class="btn" id="loginGo">دخول</button></div>
-  </form>
-</dialog>
-
-<div id="admin" class="admin" hidden>
-  <div class="adm-bar">
-    <strong>لوحة التحكم</strong>
-    <span class="adm-actions">
-      <button class="btn sm ghost" id="aPrev">معاينة</button>
-      <button class="btn sm" id="aPub">نشر التغييرات</button>
-      <button class="btn sm ghost" id="aExp">تصدير JSON</button>
-      <label class="btn sm ghost" for="aImp">استيراد JSON</label><input type="file" id="aImp" accept="application/json" hidden>
-      <button class="btn sm ghost" id="aReset">استرجاع الأصل</button>
-      <button class="btn sm ghost" id="aOut">خروج</button>
-    </span>
-  </div>
-  <p class="notice">التغييرات تُحفظ في هذا المتصفح فقط. للنشر لكل الزوار صدّري JSON واستبدلي <bdi dir="ltr">data/products.json</bdi> (انظري README).</p>
-  <div class="adm-body">
-    <div><button class="btn sm" id="aAdd">+ منتج جديد</button><ul class="alist" id="aList"></ul></div>
-    <form class="aform" id="aForm" hidden novalidate>
-      <h3 id="fTitle"></h3>
-      <label for="fName">اسم المنتج</label><input id="fName" maxlength="80" required>
-      <label for="fDesc">الوصف</label><textarea id="fDesc" rows="3" maxlength="300" required></textarea>
-      <label for="fPrice">الثمن (درهم)</label><input id="fPrice" type="number" min="1" step="1" required>
-      <label for="fCat">القسم</label><select id="fCat"></select>
-      <label for="fImg">رابط الصورة</label><input id="fImg" dir="ltr" placeholder="https://... أو assets/images/name.jpg" required>
-      <img id="fPrev" class="fprev" alt="معاينة الصورة" width="120" height="120">
-      <label class="chk"><input type="checkbox" id="fVis"> ظاهر في المتجر</label>
-      <p class="err" id="fErr" role="alert"></p>
-      <div class="row"><button type="button" class="btn ghost" id="fCancel">إلغاء</button><button class="btn" id="fSave">حفظ المنتج</button></div>
-    </form>
-  </div>
-  <div id="aPreview" class="preview" hidden><h3>معاينة المتجر (لم تُنشر بعد)</h3><div class="grid" id="pGrid"></div></div>
-</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="js/firebase-config.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
