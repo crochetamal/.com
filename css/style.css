@@ -86,3 +86,5 @@ input:focus,select:focus,textarea:focus{border-color:var(--rose-d)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 #fImg{text-overflow:ellipsis}
+
+.gate{max-width:420px;margin:10vh auto;text-align:center;padding:24px}

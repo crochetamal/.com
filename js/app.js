@@ -33,6 +33,8 @@ async function shrink(file) {
   while (u.length > 240000 && q > 0.4) { q -= 0.1; u = c.toDataURL('image/jpeg', q); }
   return u;
 }
+const IS_ADMIN = document.body.dataset.page === 'admin';
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
 const state = { site: null, base: [], published: [], draft: [], filter: 'all', editing: null };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -87,6 +89,7 @@ function fill(grid, list, filter) {
   shown.forEach((p) => grid.append(card(p)));
 }
 function renderStore() {
+  if (!$('grid')) return;
   fill($('grid'), state.published, state.filter);
   const cats = state.site.categories, box = $('chips');
   box.replaceChildren();
@@ -170,7 +173,7 @@ function saveForm(e) {
 async function publish() {
   if (!confirm(FB.on ? 'نشر التغييرات لكل الزوار؟' : 'نشر التغييرات في هذا المتصفح؟')) return;
   if (FB.on) {
-    try { await fbSave(state.draft); } catch (e) { toast('فشل النشر: تأكدي من الاتصال ومن قواعد Firestore.', true); return; }
+    try { await withTimeout(fbSave(state.draft), 20000); } catch (e) { toast('فشل النشر: تأكدي من الاتصال ومن قواعد Firestore.', true); return; }
     state.published = clone(state.draft); renderStore(); toast('تم النشر لكل الزوار فورًا.'); return;
   }
   try { localStorage.setItem(KEY, JSON.stringify(state.draft)); } catch (e) { toast('تعذّر الحفظ: التخزين ممتلئ أو مُعطّل.', true); return; }
@@ -207,6 +210,7 @@ function wireAdmin() {
   dlg.querySelector('[data-close]').onclick = () => dlg.close();
   $('loginForm').onsubmit = async (e) => {
     e.preventDefault();
+    if (window.FIREBASE_CONFIG && !FB.on) { $('loginErr').textContent = 'تعذّر الاتصال بـ Firebase. تحققي من الإنترنت وأعيدي تحميل الصفحة.'; return; }
     if (FB.on) {
       try { await FB.au.signInWithEmailAndPassword(FB.auth, $('em').value.trim(), $('pw').value); dlg.close(); openAdmin(); toast('مرحبًا أمال'); }
       catch (err) { $('loginErr').textContent = 'البريد أو كلمة المرور غير صحيحة.'; }
@@ -238,15 +242,20 @@ async function init() {
     if (!s.ok || !p.ok) throw new Error('fetch failed');
     state.site = await s.json(); state.base = cleanProducts((await p.json()).products);
   } catch (e) {
-    $('grid').replaceChildren(el('p', { className: 'empty' }, ['تعذّر تحميل البيانات. افتحي الموقع عبر رابط الاستضافة وليس كملف مباشر.']));
+    if ($('grid')) $('grid').replaceChildren(el('p', { className: 'empty' }, ['تعذّر تحميل البيانات. افتحي الموقع عبر رابط الاستضافة وليس كملف مباشر.']));
     return;
   }
-  try { await fbInit(); } catch (e) { FB.on = false; }
+  // اعرض الكتالوج فورًا، ثم حدّثه من Firebase إن توفر
+  state.published = window.FIREBASE_CONFIG ? clone(state.base) : load();
+  const goHash = () => { if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); } };
+  if (!IS_ADMIN) { renderSite(); renderStore(); goHash(); }
+  try { await withTimeout(fbInit(), 10000); } catch (e) { FB.on = false; }
   if (FB.on) {
-    try { const l = await fbLoad(); state.published = l.length ? cleanProducts(l) : clone(state.base); }
-    catch (e) { state.published = clone(state.base); }
-  } else state.published = load();
-  renderSite(); renderStore(); wireAdmin();
-  if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+    try {
+      const l = await withTimeout(fbLoad(), 8000);
+      if (l.length) { state.published = cleanProducts(l); renderStore(); goHash(); }
+    } catch (e) { console.warn('Firestore:', e.message); }
+  }
+  if (IS_ADMIN) { wireAdmin(); $('admBtn').click(); }
 }
 init();
