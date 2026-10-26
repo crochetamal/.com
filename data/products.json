@@ -1,68 +1,9 @@
 {
   "version": 1,
   "products": [
-    {
-      "id": "p-tote-bag",
-      "name": "حقيبة كروشيه بيج",
-      "description": "حقيبة كتف واسعة بخيط قطني متين، مع وردة صغيرة وميدالية ذهبية. تتسع لكل أغراضك اليومية.",
-      "price": 180,
-      "category": "bags",
-      "image": "assets/images/tote-bag.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-flower-headband",
-      "name": "باندو الأزهار",
-      "description": "إكسسوار شعر مزهّر بخيط قطني كريمي وقلوب بنية، مع رباط للتثبيت. خفيف ومريح.",
-      "price": 60,
-      "category": "hair",
-      "image": "assets/images/flower-headband.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-headscarf",
-      "name": "إيشارب كروشيه بالخرز",
-      "description": "إيشارب شبكي بلون العنابي مزيّن بحبات ولمعات ملوّنة. أنيق لكل المناسبات.",
-      "price": 90,
-      "category": "clothing",
-      "image": "assets/images/headscarf.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-mug-cozy",
-      "name": "غطاء كوب مع حامل",
-      "description": "غطاء كوب دافئ بوردة كروشيه وحامل دائري مطابق. هدية جميلة لعشاق القهوة.",
-      "price": 70,
-      "category": "gifts",
-      "image": "assets/images/mug-cozy.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-glasses-case",
-      "name": "حافظة نظارات على شكل دبدوب",
-      "description": "حافظة نظارات مصنوعة بالكروشيه بخيط قطني ناعم، بلونين: وردي وبيج. تحمي نظارتك وتزيّن طاولتك.",
-      "price": 45,
-      "category": "gifts",
-      "image": "assets/images/glasses-case.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-striped-bag",
-      "name": "حقيبة كروشيه بيضاء بخطوط ملوّنة",
-      "description": "حقيبة يد بيضاء بخطوط وردية وخضراء ووردة صغيرة بلؤلؤة. بسيطة وأنيقة لكل يوم.",
-      "price": 150,
-      "category": "bags",
-      "image": "assets/images/striped-bag.jpg",
-      "visible": true
-    },
-    {
-      "id": "p-flower-accessory",
-      "name": "إكسسوار شعر بالأزهار",
-      "description": "شريط أزهار كروشيه بلون بيج وقلب بني مع رباط للتثبيت. تفاصيل ناعمة ومميزة.",
-      "price": 50,
-      "category": "hair",
-      "image": "assets/images/flower-hair-accessory.jpg",
-      "visible": true
-    }
+    {"id":"p-tote-bag","name":"حقيبة كروشيه بيج","description":"حقيبة كتف واسعة بخيط قطني متين، مع وردة صغيرة وميدالية ذهبية. تتسع لكل أغراضك اليومية.","price":180,"category":"bags","image":"assets/images/tote-bag.jpg","visible":true},
+    {"id":"p-flower-headband","name":"باندو الأزهار","description":"إكسسوار شعر مزهّر بخيط قطني كريمي وقلوب بنية، مع رباط للتثبيت. خفيف ومريح.","price":60,"category":"hair","image":"assets/images/flower-headband.jpg","visible":true},
+    {"id":"p-headscarf","name":"إيشارب كروشيه بالخرز","description":"إيشارب شبكي بلون العنابي مزيّن بحبات ولمعات ملوّنة. أنيق لكل المناسبات.","price":90,"category":"clothing","image":"assets/images/headscarf.jpg","visible":true},
+    {"id":"p-mug-cozy","name":"غطاء كوب مع حامل","description":"غطاء كوب دافئ بوردة كروشيه وحامل دائري مطابق. هدية جميلة لعشاق القهوة.","price":70,"category":"gifts","image":"assets/images/mug-cozy.jpg","visible":true}
   ]
 }

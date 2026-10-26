@@ -54,8 +54,8 @@ blockquote p{margin:0 0 10px}blockquote footer{color:var(--rose-d);font-weight:7
 .contact{text-align:center}.contact p{max-width:34em;margin:0 auto 20px}
 .foot{background:var(--cocoa);color:var(--cream);text-align:center;padding:30px 5vw;position:relative}
 .foot a{color:var(--cream);margin:0 10px;font-weight:500}
-.adm{background:none;border:0;color:inherit;font:inherit;cursor:default;padding:0}
-.adm:focus-visible{outline-color:var(--cream)}
+.adm{position:absolute;inset-inline-end:8px;bottom:4px;background:none;border:0;color:var(--cocoa);opacity:.6;cursor:pointer;padding:6px 10px;font-size:1rem}
+.adm:hover,.adm:focus-visible{color:var(--cream);opacity:1}
 .dlg{border:0;border-radius:var(--r);padding:24px;width:min(92vw,380px);background:var(--card);color:var(--ink)}
 .dlg::backdrop{background:rgba(58,36,27,.5)}
 .dlg h2{font-size:1.4rem}
@@ -84,7 +84,3 @@ input:focus,select:focus,textarea:focus{border-color:var(--rose-d)}
 .toast{position:fixed;bottom:18px;inset-inline:0;margin:auto;width:max-content;max-width:90vw;background:var(--cocoa);color:#fff;padding:10px 20px;border-radius:999px;z-index:99;opacity:0;pointer-events:none;transition:opacity .25s}
 .toast.show{opacity:1}.toast.bad{background:#a3162a}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-
-#fImg{text-overflow:ellipsis}
-
-.gate{max-width:420px;margin:10vh auto;text-align:center;padding:24px}
