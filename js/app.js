@@ -1,5 +1,6 @@
 'use strict';
 const KEY = 'crochetAmal.products.v1';
+const CACHE = 'crochetAmal.cache.v1';
 const SESSION = 'crochetAmal.admin';
 // Convenience lock only: the hash is visible to anyone who inspects the code.
 const PW_HASH = 'bb1b5ca296dc3ffab66629a6bb46eb7a44cab90dd8b18897244418a7ead55e07';
@@ -11,7 +12,7 @@ async function fbInit() {
   const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const [app, fs, au] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js'), import(base + 'firebase-auth.js')]);
   const a = app.initializeApp(cfg);
-  Object.assign(FB, { db: fs.getFirestore(a), auth: au.getAuth(a), fs, au, on: true });
+  Object.assign(FB, { db: fs.initializeFirestore(a, { experimentalAutoDetectLongPolling: true }), auth: au.getAuth(a), fs, au, on: true });
 }
 async function fbLoad() {
   const { collection, getDocs, query, orderBy } = FB.fs;
@@ -26,11 +27,11 @@ async function fbSave(list) {
   await b.commit();
 }
 async function shrink(file) {
-  const bmp = await createImageBitmap(file), s = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+  const bmp = await createImageBitmap(file), s = Math.min(1, 640 / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
   let q = 0.82, u = c.toDataURL('image/jpeg', q);
-  while (u.length > 240000 && q > 0.4) { q -= 0.1; u = c.toDataURL('image/jpeg', q); }
+  while (u.length > 90000 && q > 0.35) { q -= 0.1; u = c.toDataURL('image/jpeg', q); }
   return u;
 }
 const IS_ADMIN = document.body.dataset.page === 'admin';
@@ -264,6 +265,7 @@ async function init() {
   }
   // اعرض الكتالوج فورًا، ثم حدّثه من Firebase إن توفر
   state.published = window.FIREBASE_CONFIG ? clone(state.base) : load();
+  if (window.FIREBASE_CONFIG && !IS_ADMIN) { try { const c = localStorage.getItem(CACHE); if (c) state.published = cleanProducts(JSON.parse(c)); } catch (e) { /* ignore */ } }
   const goHash = () => { if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); } };
   if (!IS_ADMIN) { renderSite(); renderStore(); goHash(); }
   // الأزرار تعمل فورًا؛ الدخول ينتظر READY (Firebase + الكتالوج)
@@ -271,10 +273,10 @@ async function init() {
     try { await withTimeout(fbInit(), 10000); } catch (e) { FB.on = false; console.warn('Firebase init:', e.message); }
     if (FB.on) {
       try {
-        const l = await withTimeout(fbLoad(), 8000);
-        if (l.length) { state.published = cleanProducts(l); if (!IS_ADMIN) { renderStore(); goHash(); } }
+        let l; try { l = await withTimeout(fbLoad(), 20000); } catch (e1) { l = await withTimeout(fbLoad(), 20000); }
+        if (l.length) { state.published = cleanProducts(l); try { localStorage.setItem(CACHE, JSON.stringify(state.published)); } catch (e2) { /* ignore */ } if (!IS_ADMIN) { renderStore(); goHash(); } }
       } catch (e) { console.warn('Firestore:', e.message); }
-    }
+    } else if (window.FIREBASE_CONFIG) { console.warn('Firebase غير متاح'); }
   })();
   if (IS_ADMIN) { wireAdmin(); $('admBtn').click(); }
   await READY;
