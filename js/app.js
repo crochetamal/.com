@@ -138,9 +138,9 @@ function renderList() {
       img(p.image, '', { width: 54, height: 54 }),
       el('span', { className: 'nm' + (p.visible ? '' : ' off') }, [p.name + (p.visible ? '' : ' (مخفي)') + ' · ' + p.price + ' د']),
       btn('▲', () => move(i, -1), '', 'تحريك للأعلى'), btn('▼', () => move(i, 1), '', 'تحريك للأسفل'),
-      btn(p.visible ? 'إخفاء' : 'إظهار', () => { p.visible = !p.visible; renderList(); }),
+      btn(p.visible ? 'إخفاء' : 'إظهار', () => { p.visible = !p.visible; renderList(); publish(true); }),
       btn('تعديل', () => editForm(p)),
-      btn('حذف', () => { if (confirm('حذف المنتج «' + p.name + '»؟')) { state.draft.splice(i, 1); renderList(); $('aForm').hidden = true; toast('تم حذف المنتج (انشري التغييرات لحفظها)'); } }, 'del')
+      btn('حذف', () => { if (confirm('حذف المنتج «' + p.name + '»؟')) { state.draft.splice(i, 1); renderList(); $('aForm').hidden = true; publish(true); } }, 'del')
     ]));
   });
   if (!state.draft.length) ul.append(el('li', {}, ['لا توجد منتجات. أضيفي أول منتج.']));
@@ -169,16 +169,17 @@ function saveForm(e) {
   if (err) { $('fErr').textContent = err; toast(err, true); return; }
   const data = { name, description: desc, price, category: $('fCat').value, image, visible: $('fVis').checked };
   if (state.editing) Object.assign(state.editing, data); else state.draft.push({ id: 'p-' + Date.now().toString(36), ...data });
-  $('aForm').hidden = true; renderList(); toast('تم حفظ المنتج في المسودة. اضغطي «نشر التغييرات».');
+  $('aForm').hidden = true; renderList(); publish(true);
 }
-async function publish() {
-  if (!confirm(FB.on ? 'نشر التغييرات لكل الزوار؟' : 'نشر التغييرات في هذا المتصفح؟')) return;
+async function publish(auto) {
+  if (!auto && !confirm(FB.on ? 'نشر التغييرات لكل الزوار؟' : 'نشر التغييرات في هذا المتصفح؟')) return false;
   if (FB.on) {
-    try { await withTimeout(fbSave(state.draft), 20000); } catch (e) { toast('فشل النشر: تأكدي من الاتصال ومن قواعد Firestore.', true); return; }
-    state.published = clone(state.draft); renderStore(); toast('تم النشر لكل الزوار فورًا.'); return;
+    toast('جارٍ النشر…');
+    try { await withTimeout(fbSave(state.draft), 20000); } catch (e) { toast('فشل النشر: تأكدي من الاتصال ومن قواعد Firestore (بريد المسؤولة).', true); return false; }
+    state.published = clone(state.draft); renderStore(); toast('تم النشر لكل الزوار فورًا.'); return true;
   }
-  try { localStorage.setItem(KEY, JSON.stringify(state.draft)); } catch (e) { toast('تعذّر الحفظ: التخزين ممتلئ أو مُعطّل.', true); return; }
-  state.published = clone(state.draft); renderStore(); toast('تم النشر في هذا المتصفح. صدّري JSON لنشرها للجميع.');
+  try { localStorage.setItem(KEY, JSON.stringify(state.draft)); } catch (e) { toast('تعذّر الحفظ: التخزين ممتلئ أو مُعطّل.', true); return false; }
+  state.published = clone(state.draft); renderStore(); toast('تم النشر في هذا المتصفح. صدّري JSON لنشرها للجميع.'); return true;
 }
 function exportJson() {
   const blob = new Blob([JSON.stringify({ version: 1, products: state.draft }, null, 2)], { type: 'application/json' });
@@ -240,13 +241,13 @@ function wireAdmin() {
   $('fCancel').onclick = () => ($('aForm').hidden = true);
   $('fFile').onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    try { $('fImg').value = await shrink(f); showPrev(); toast('تم تجهيز الصورة. اضغطي «حفظ المنتج».'); }
+    try { $('fImg').value = await shrink(f); showPrev(); toast('تم تجهيز الصورة. اضغطي «حفظ المنتج» لنشرها مباشرة.'); }
     catch (err) { toast('تعذّر قراءة الصورة.', true); }
   };
   $('aForm').onsubmit = saveForm; $('fImg').oninput = showPrev;
   $('fPrev').onerror = () => { if ($('fPrev').src !== FALLBACK) $('fPrev').src = FALLBACK; };
   $('aPrev').onclick = () => { const p = $('aPreview'); p.hidden = !p.hidden; if (!p.hidden) { fill($('pGrid'), state.draft, 'all'); p.scrollIntoView(); } };
-  $('aPub').onclick = publish; $('aExp').onclick = exportJson; $('aImp').onchange = importJson;
+  $('aPub').onclick = () => publish(false); $('aExp').onclick = exportJson; $('aImp').onchange = importJson;
   $('aReset').onclick = resetAll;
   $('aOut').onclick = () => { if (confirm('الخروج من لوحة التحكم؟ المسودة غير المنشورة ستضيع.')) closeAdmin(); };
 }
