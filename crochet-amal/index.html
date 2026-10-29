@@ -3,63 +3,275 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crochet.Amal | كروشيه مصنوع يدويًا</title>
-<meta name="description" content="Crochet.Amal: حقائب وإكسسوارات وهدايا كروشيه مصنوعة يدويًا. اطلبي عبر واتساب.">
-<link rel="icon" href="assets/images/favicon.png">
+<title>Crochet.Amal | كروشيه يدوي فاخر مصنوع بحب في المغرب</title>
+<meta name="description" content="Crochet.Amal: حقائب كروشيه، إكسسوارات شعر، ملابس وهدايا يدوية منسوجة بخيوط قطنية مختارة. اطلبي قطعتكِ مباشرة عبر واتساب مع توصيل لجميع مدن المغرب.">
+<meta property="og:title" content="Crochet.Amal | كروشيه يدوي مصنوع بحب">
+<meta property="og:description" content="حقائب وإكسسوارات وهدايا كروشيه منسوجة يدويًا بإتقان. اختاري قطعتكِ أو صممي طلبكِ الخاص عبر واتساب.">
+<meta property="og:image" content="assets/images/logo.jpg">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/images/logo.jpg">
+<link rel="apple-touch-icon" href="assets/images/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-page="store">
 <a class="skip" href="#products">تخطي إلى المنتجات</a>
-<header class="nav">
-  <a class="brand" href="#top" aria-label="Crochet.Amal"><img src="assets/images/favicon.png" alt="" width="36" height="36"><bdi dir="ltr" class="wordmark">Crochet.Amal</bdi></a>
-  <nav aria-label="التنقل الرئيسي">
-    <a href="#products">المنتجات</a><a href="#categories">الأقسام</a><a href="#why">لماذا يدوي؟</a><a href="#reviews">آراء</a><a href="#contact">تواصل</a>
-  </nav>
-</header>
-<main id="top">
-  <section class="hero">
-    <div class="hero-text">
-      <p class="tag">فعل يدوي بحب <span aria-hidden="true">♥</span></p>
-      <h1 id="hTitle"></h1>
-      <p id="hText"></p>
-      <a class="btn wa" id="hCta" target="_blank" rel="noopener"></a>
+
+<!-- شريط الإعلان العلوي -->
+<div class="topbar" role="region" aria-label="مميزات المتجر">
+  <div class="topbar-inner" id="topbarText">
+    <span>✨ صُنع يدوي بحب في كل غرزة</span>
+    <span class="topbar-dot" aria-hidden="true">•</span>
+    <span>🎨 تخصيص الألوان والمقاسات حسب ذوقكِ</span>
+    <span class="topbar-dot" aria-hidden="true">•</span>
+    <span>🚚 توصيل سريع لجميع المدن المغربية</span>
+  </div>
+</div>
+
+<!-- شريط التنقل الرئيسي -->
+<header class="nav-wrap">
+  <div class="nav">
+    <a class="brand" href="#top" aria-label="Crochet.Amal الرئيسية">
+      <img class="brand-logo" src="assets/images/logo.jpg" alt="شعار Crochet.Amal" width="46" height="46">
+      <span class="brand-txt">
+        <bdi dir="ltr" class="wordmark">Crochet.Amal</bdi>
+        <span class="brand-sub">فعل يدوي بحب ♥</span>
+      </span>
+    </a>
+
+    <nav class="nav-links" id="navLinks" aria-label="التنقل الرئيسي">
+      <a href="#top">الرئيسية</a>
+      <a href="#products">المنتجات</a>
+      <a href="#how">كيف تطلبين؟</a>
+      <a href="#whySec">لماذا نحن؟</a>
+      <a href="#reviewsSec">آراء الزبونات</a>
+      <a href="#contact">تواصلي معنا</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button type="button" class="cart-btn" id="openCartBtn" aria-label="سلة الطلب عبر واتساب">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-label">سلة الطلب</span>
+        <span class="cart-badge" id="cartCount">0</span>
+      </button>
+      <button type="button" class="menu-toggle" id="menuBtn" aria-label="فتح القائمة" aria-expanded="false" aria-controls="navLinks">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
-    <figure class="hero-img"><img id="hImg" alt="حقيبة كروشيه من Crochet.Amal" width="600" height="600"></figure>
+  </div>
+</header>
+
+<main id="top">
+  <!-- واجهة الهبوط الرئيسية (Hero) -->
+  <section class="hero-wrap" aria-labelledby="hTitle">
+    <div class="hero">
+      <div class="hero-text">
+        <p class="eyebrow"><span aria-hidden="true">🧶</span> إبداع يدوي مغربي 100%</p>
+        <h1 id="hTitle">كروشيه مصنوع بيد أمال، بحبّ في كل غرزة</h1>
+        <p class="hero-lead" id="hText">حقائب، إكسسوارات شعر، ملابس وهدايا مصنوعة يدويًا بخيوط قطنية ناعمة. اختاري قطعتكِ واطلبيها مباشرة عبر واتساب.</p>
+        <div class="hero-ctas">
+          <a class="btn wa" id="hCta" target="_blank" rel="noopener">
+            <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.86 11.86 0 0012.06 0C5.5 0 .16 5.34.16 11.9c0 2.1.55 4.15 1.6 5.95L0 24l6.33-1.66a11.9 11.9 0 005.73 1.46h.01c6.55 0 11.89-5.34 11.9-11.9a11.82 11.82 0 00-3.45-8.42zM12.07 21.8h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.75.98 1-3.66-.24-.37a9.85 9.85 0 01-1.52-5.26c0-5.45 4.44-9.89 9.9-9.89a9.83 9.83 0 017 2.9 9.83 9.83 0 012.9 7c0 5.46-4.44 9.89-9.89 9.89zm5.43-7.41c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.48-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
+            <span id="hCtaText">اطلبي عبر واتساب</span>
+          </a>
+          <a class="btn ghost" href="#products">تصفّحي الكتالوج ↓</a>
+        </div>
+        <div class="hero-highlights">
+          <div class="hl-item"><strong>100% يدوي</strong><span>دقة وإتقان في كل غرزة</span></div>
+          <div class="hl-item"><strong>قطن مختار</strong><span>خيوط ناعمة تدوم طويلًا</span></div>
+          <div class="hl-item"><strong>تفصيل خاص</strong><span>ألوان ومقاسات حسب طلبكِ</span></div>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <figure class="hero-frame">
+          <img class="hero-frame-bg" id="hImgBg" src="assets/images/tote-bag.jpg" alt="" aria-hidden="true">
+          <img class="hero-main-img" id="hImg" src="assets/images/tote-bag.jpg" alt="قطعة كروشيه مميزة من Crochet.Amal" width="600" height="600">
+        </figure>
+        <div class="hero-float-badge">
+          <div class="hero-float-icon" aria-hidden="true">♥</div>
+          <div>
+            <strong>جاهز للإهداء والتوصيل</strong>
+            <small>تغليف أنيق لجميع مدن المغرب</small>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section id="categories" class="sec" aria-labelledby="catH">
-    <h2 id="catH">تسوّقي حسب القسم</h2>
-    <div class="chips" id="chips" role="group" aria-label="تصفية المنتجات"></div>
-  </section>
-
+  <!-- قسم الكتالوج والمنتجات والأقسام -->
   <section id="products" class="sec" aria-labelledby="prodH">
-    <h2 id="prodH">قطع من صنع أمال</h2>
+    <div class="sec-head" id="categories">
+      <span class="sec-kicker">تشكيلة أمال اليدوية</span>
+      <h2 id="prodH">اختاري قطعتكِ المفضلة</h2>
+      <p>اضغطي على أي صورة لمعاينتها بحجم كامل، أو اطلبي قطعتكِ مباشرة عبر واتساب بضغطة واحدة.</p>
+    </div>
+
+    <div class="catalog-controls">
+      <div class="chips" id="chips" role="group" aria-label="تصفية حسب القسم"></div>
+      <div class="search-sort-bar">
+        <div class="search-box">
+          <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="searchInput" placeholder="ابحثي عن حقيبة، باندو، إيشارب، هدية..." aria-label="ابحثي في المنتجات">
+        </div>
+        <div class="sort-wrap">
+          <span class="results-count" id="resultsCount"></span>
+          <select id="sortSelect" class="sort-select" aria-label="ترتيب المنتجات">
+            <option value="default">الترتيب المميز</option>
+            <option value="price-asc">الثمن: من الأقل إلى الأعلى</option>
+            <option value="price-desc">الثمن: من الأعلى إلى الأقل</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <div class="grid" id="grid" aria-live="polite"></div>
   </section>
 
-  <section id="why" class="sec soft" aria-labelledby="whyH">
-    <h2 id="whyH">لماذا نختار اليدوي؟</h2>
-    <div class="why" id="why"></div>
+  <!-- كيف تطلبين؟ -->
+  <section id="how" class="sec" aria-labelledby="howH">
+    <div class="sec-head">
+      <span class="sec-kicker">سهولة وسرعة</span>
+      <h2 id="howH">كيف تطلبين قطعتكِ؟</h2>
+      <p>ثلاث خطوات بسيطة تفصلكِ عن اقتناء قطعة كروشيه منسوجة خصيصًا لكِ.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>اختاري القطعة أو الفكرة</h3>
+        <p>تصفّحي القطع المتوفرة في المتجر أو أضيفي أكثر من قطعة إلى سلة الطلب، كما يمكنكِ إرسال صورة لأي موديل يعجبكِ.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>حددي اللون والتفاصيل</h3>
+        <p>اضغطي على زر الطلب عبر واتساب وأخبرينا باللون المفضل أو المقاس والمدينة لنؤكد لكِ الطلب فورًا.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>ننسجها بحب ونوصلها لبابكِ</h3>
+        <p>نشتغل قطعتكِ بدقة وعناية فائقة ثم نرسلها مغلّفة بأناقة لتصلكِ أينما كنتِ في المغرب.</p>
+      </div>
+    </div>
   </section>
 
-  <section id="reviews" class="sec" aria-labelledby="revH">
-    <h2 id="revH">ماذا تقول زبوناتنا</h2>
-    <div class="reviews" id="reviews"></div>
+  <!-- لماذا نختار اليدوي؟ -->
+  <div class="sec-band" id="whySec">
+    <section class="sec" aria-labelledby="whyH">
+      <div class="sec-head">
+        <span class="sec-kicker">قيمة الحِرفة اليدوية</span>
+        <h2 id="whyH">لماذا تختارين كروشيه أمال؟</h2>
+        <p>كل قطعة تحمل روح الصناعة اليدوية الأصيلة وتفاصيل لا تصنعها الآلات.</p>
+      </div>
+      <div class="why-grid" id="why"></div>
+    </section>
+  </div>
+
+  <!-- آراء الزبونات -->
+  <section id="reviewsSec" class="sec" aria-labelledby="revH">
+    <div class="sec-head">
+      <span class="sec-kicker">ثقة زبوناتنا</span>
+      <h2 id="revH">ماذا تقول زبوناتنا؟</h2>
+      <p>سعادتكنّ بقطعنا هي أكبر دافع لنا للإبداع في كل غرزة جديدة.</p>
+    </div>
+    <div class="reviews-grid" id="reviews"></div>
   </section>
 
-  <section id="contact" class="sec contact" aria-labelledby="conH">
-    <h2 id="conH">تواصلي معنا</h2>
-    <p id="cText"></p>
-    <a class="btn wa" id="cCta" target="_blank" rel="noopener">راسلينا على واتساب <bdi dir="ltr" id="cPhone"></bdi></a>
+  <!-- طلب خاص وتواصل -->
+  <section id="contact" class="sec" aria-labelledby="conH">
+    <div class="contact-card">
+      <span class="sec-kicker">تصميم حسب الطلب</span>
+      <h2 id="conH">هل ترغبين بلون خاص أو هدية مميزة؟</h2>
+      <p id="cText">للطلب أو الاستفسار أو تصميم قطعة خاصة، راسلينا على واتساب وسنرد عليكِ في أقرب وقت.</p>
+      <div class="contact-btns">
+        <a class="btn wa" id="cCta" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.86 11.86 0 0012.06 0C5.5 0 .16 5.34.16 11.9c0 2.1.55 4.15 1.6 5.95L0 24l6.33-1.66a11.9 11.9 0 005.73 1.46h.01c6.55 0 11.89-5.34 11.9-11.9a11.82 11.82 0 00-3.45-8.42zM12.07 21.8h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.75.98 1-3.66-.24-.37a9.85 9.85 0 01-1.52-5.26c0-5.45 4.44-9.89 9.9-9.89a9.83 9.83 0 017 2.9 9.83 9.83 0 012.9 7c0 5.46-4.44 9.89-9.89 9.89zm5.43-7.41c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.48-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
+          <span>راسلينا على واتساب <bdi dir="ltr" id="cPhone"></bdi></span>
+        </a>
+        <a class="btn outline-wine" id="instaCta" href="https://www.instagram.com/crochet.amal_.0" target="_blank" rel="noopener">تابعينا على إنستغرام</a>
+      </div>
+    </div>
+
+    <div class="ad-wrap">
+      <div class="ad-box" id="adBox">
+        <iframe id="adFrame" title="إعلان" width="728" height="90" scrolling="no" frameborder="0" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin" srcdoc="&lt;html&gt;&lt;body style='margin:0'&gt;&lt;script&gt;atOptions={'key':'7d6579859ccdb8c0df3a851f2ffb11ca','format':'iframe','height':90,'width':728,'params':{}};&lt;/script&gt;&lt;script src='https://www.highperformanceformat.com/7d6579859ccdb8c0df3a851f2ffb11ca/invoke.js'&gt;&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe>
+      </div>
+      <small class="ad-note">إعلان</small>
+    </div>
   </section>
 </main>
+
+<!-- التذييل -->
 <footer class="foot">
-  <div class="social" id="social"></div>
-  <p><bdi dir="ltr">Crochet.Amal</bdi> · <span>© 2026</span> · فعل يدوي بحب</p>
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <bdi dir="ltr" class="wordmark">Crochet.Amal</bdi>
+      <p>متجر مغربي متخصص في الكروشيه اليدوي المصنوع بحب من أجود الخيوط القطنية. حقائب، إكسسوارات وهدايا مميزة.</p>
+    </div>
+    <div class="foot-links">
+      <h4>روابط سريعة</h4>
+      <ul>
+        <li><a href="#products">كتالوج المنتجات</a></li>
+        <li><a href="#how">طريقة الطلب</a></li>
+        <li><a href="#whySec">مميزات الكروشيه اليدوي</a></li>
+        <li><a href="#reviewsSec">آراء الزبونات</a></li>
+      </ul>
+    </div>
+    <div class="foot-links">
+      <h4>تواصلي معنا</h4>
+      <div class="social" id="social"></div>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <bdi dir="ltr">Crochet.Amal</bdi> · <span>© 2026</span> · جميع الحقوق محفوظة · صُنع بحب ♥
+  </div>
 </footer>
+
+<!-- زر واتساب العائم -->
+<a class="wa-float" id="waFloat" target="_blank" rel="noopener" aria-label="تواصلي عبر واتساب">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.86 11.86 0 0012.06 0C5.5 0 .16 5.34.16 11.9c0 2.1.55 4.15 1.6 5.95L0 24l6.33-1.66a11.9 11.9 0 005.73 1.46h.01c6.55 0 11.89-5.34 11.9-11.9a11.82 11.82 0 00-3.45-8.42zM12.07 21.8h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.75.98 1-3.66-.24-.37a9.85 9.85 0 01-1.52-5.26c0-5.45 4.44-9.89 9.9-9.89a9.83 9.83 0 017 2.9 9.83 9.83 0 012.9 7c0 5.46-4.44 9.89-9.89 9.89zm5.43-7.41c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.48-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
+</a>
+
+<!-- نافذة معاينة المنتج والصورة بحجم كامل -->
+<dialog id="qvDlg" class="dlg qv-dlg" aria-labelledby="qvTitle">
+  <button type="button" class="qv-close" id="qvClose" aria-label="إغلاق المعاينة">✕</button>
+  <div class="qv-grid">
+    <div class="qv-media">
+      <div class="qv-main-img-wrap"><img id="qvImg" alt=""></div>
+      <div class="qv-thumbs" id="qvThumbs"></div>
+    </div>
+    <div class="qv-info">
+      <span class="sec-kicker" id="qvCat"></span>
+      <h3 id="qvTitle"></h3>
+      <div class="price" id="qvPrice"></div>
+      <p id="qvDesc"></p>
+      <div class="qv-actions">
+        <a class="btn wa" id="qvWa" target="_blank" rel="noopener">اطلبي هذه القطعة عبر واتساب</a>
+        <button type="button" class="btn ghost" id="qvAddCart">+ أضيفي إلى سلة الطلب</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- درج سلة الطلبات عبر واتساب -->
+<div class="cart-backdrop" id="cartBackdrop" hidden></div>
+<aside class="cart-drawer" id="cartDrawer" aria-label="سلة الطلب" hidden>
+  <div class="cart-head">
+    <h3>سلة الطلب عبر واتساب</h3>
+    <button type="button" class="btn sm ghost" id="closeCartBtn">إغلاق ✕</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-foot" id="cartFoot">
+    <input type="text" class="cart-note-input" id="cartCity" placeholder="المدينة (اختياري، مثل: الدار البيضاء)">
+    <input type="text" class="cart-note-input" id="cartNote" placeholder="ملاحظة أو لون مفضل (اختياري)">
+    <div class="cart-total-row">
+      <span>المجموع التقديري:</span>
+      <span id="cartTotal">0 درهم</span>
+    </div>
+    <a class="btn wa" id="cartCheckoutBtn" target="_blank" rel="noopener">إرسال الطلب عبر واتساب</a>
+  </div>
+</aside>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="js/firebase-config.js"></script>

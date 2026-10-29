@@ -5,59 +5,189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>لوحة التحكم | Crochet.Amal</title>
-<link rel="icon" href="assets/images/favicon.png">
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/images/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-page="admin">
-<main class="gate">
-  <img src="assets/images/favicon.png" alt="" width="72" height="72" style="margin:auto;border-radius:50%">
-  <h1 style="font-size:1.6rem"><bdi dir="ltr" class="wordmark">Crochet.Amal</bdi> · لوحة التحكم</h1>
-  <button class="btn" id="admBtn" type="button">تسجيل الدخول</button>
-  <p><a href="./">العودة إلى المتجر</a></p>
+
+<main class="gate" id="gateBox">
+  <img class="gate-logo" src="assets/images/logo.jpg" alt="Crochet.Amal" width="84" height="84">
+  <h1 style="font-size:1.55rem;margin:0 0 8px"><bdi dir="ltr" class="wordmark">Crochet.Amal</bdi> · لوحة المشرفة</h1>
+  <p style="color:var(--muted);margin:0 0 20px;font-size:.95rem">أديري المنتجات وارفعي الصور وحدّثي واجهة الهبوط بكل سهولة.</p>
+  <button class="btn" id="admBtn" type="button">تسجيل الدخول إلى اللوحة</button>
+  <p style="margin:18px 0 0"><a href="./" style="color:var(--wine);font-weight:700">← العودة إلى صفحة الهبوط</a></p>
 </main>
+
 <dialog id="loginDlg" class="dlg">
-  <form method="dialog" id="loginForm">
-    <h2>دخول المسؤولة</h2>
-    <div id="emW" hidden><label for="em">البريد الإلكتروني</label><input type="email" id="em" dir="ltr" autocomplete="username"></div>
+  <form method="dialog" id="loginForm" novalidate>
+    <h2 style="margin:0 0 8px;color:var(--cocoa)">دخول المسؤولة</h2>
+    <p id="loginHint" style="margin:0 0 12px;font-size:.88rem;color:var(--muted)">أدخلي بيانات حسابكِ لإدارة المتجر ورفع الصور.</p>
+    <div id="emW" hidden>
+      <label for="em">البريد الإلكتروني</label>
+      <input type="email" id="em" dir="ltr" autocomplete="username" placeholder="example@gmail.com">
+    </div>
     <label for="pw">كلمة المرور</label>
     <input type="password" id="pw" autocomplete="current-password" required>
     <p class="err" id="loginErr" role="alert"></p>
-    <div class="row"><button type="button" class="btn ghost" data-close>إلغاء</button><button class="btn" id="loginGo">دخول</button></div>
+    <div style="margin-top:8px" id="localModeWrap" hidden>
+      <button type="button" class="btn sm ghost" id="useLocalBtn" style="width:100%">الدخول بكلمة المرور المحلية (هذا الجهاز)</button>
+    </div>
+    <div class="row">
+      <button type="button" class="btn ghost" data-close>إلغاء</button>
+      <button type="submit" class="btn" id="loginGo">دخول</button>
+    </div>
   </form>
 </dialog>
 
 <div id="admin" class="admin" hidden>
-  <div class="adm-bar">
-    <strong>لوحة التحكم</strong>
-    <span class="adm-actions">
-      <button class="btn sm ghost" id="aPrev">معاينة</button>
-      <button class="btn sm" id="aPub">نشر التغييرات</button>
-      <button class="btn sm ghost" id="aExp">تصدير JSON</button>
-      <label class="btn sm ghost" for="aImp">استيراد JSON</label><input type="file" id="aImp" accept="application/json" hidden>
-      <button class="btn sm ghost" id="aReset">استرجاع الأصل</button>
-      <button class="btn sm ghost" id="aOut">خروج</button>
-    </span>
+  <header class="adm-header">
+    <div class="adm-bar">
+      <div class="adm-title-wrap">
+        <strong style="font-size:1.15rem;color:var(--cocoa)">لوحة التحكم · <bdi dir="ltr" class="wordmark" style="font-size:1.25rem">Crochet.Amal</bdi></strong>
+        <span class="sync-pill" id="syncPill">جارٍ التحقق…</span>
+      </div>
+      <div class="adm-actions">
+        <a class="btn sm ghost" href="./" id="goStoreBtn">عرض صفحة الهبوط ↗</a>
+        <button type="button" class="btn sm ghost" id="aPrev">معاينة</button>
+        <button type="button" class="btn sm" id="aPub">نشر التغييرات</button>
+        <button type="button" class="btn sm ghost" id="aExp">تصدير JSON</button>
+        <label class="btn sm ghost" for="aImp" style="margin:0;cursor:pointer">استيراد JSON</label>
+        <input type="file" id="aImp" accept="application/json" hidden>
+        <button type="button" class="btn sm ghost" id="aReset">استرجاع الأصل</button>
+        <button type="button" class="btn sm danger" id="aOut">خروج</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="adm-container">
+    <p class="notice" id="notice">كل صورة ترفعينها تُحفظ فورًا وتظهر في صفحة الهبوط مباشرة.</p>
+
+    <!-- تنبيه مساعد تلقائي إذا كانت قواعد Firestore تحتاج تفعيل بريد المسؤولة -->
+    <div class="rules-alert" id="rulesAlert" hidden>
+      <strong style="color:var(--danger)">⚠ تنبيه مهم بخصوص النشر السحابي (Firebase Rules):</strong>
+      <p style="margin:6px 0">تم حفظ تعديلاتكِ وصوركِ بنجاح على <strong>هذا المتصفح</strong> وستظهر لكِ في صفحة الهبوط الآن! لكن لكي تظهر لكل الزوار على جميع الهواتف، يجب تفعيل صلاحية الكتابة لبريدكِ في Firebase Console عبر نسخ القواعد التالية ولصقها في <b>Firestore Database &gt; Rules &gt; Publish</b>:</p>
+      <pre id="rulesCode"></pre>
+      <button type="button" class="btn sm" id="copyRulesBtn">نسخ القواعد الجاهزة</button>
+    </div>
+
+    <!-- تبويبات الإدارة -->
+    <div class="adm-tabs" role="tablist">
+      <button type="button" class="adm-tab active" id="tabBtnProducts" role="tab" aria-selected="true">📦 المنتجات والصور</button>
+      <button type="button" class="adm-tab" id="tabBtnHero" role="tab" aria-selected="false">🖼️ واجهة الهبوط الرئيسية (Hero)</button>
+    </div>
+
+    <!-- التبويب الأول: المنتجات والصور -->
+    <section id="panelProducts">
+      <div class="adm-body">
+        <div>
+          <div class="alist-head">
+            <h2 style="margin:0;font-size:1.25rem;color:var(--cocoa)">قائمة المنتجات (<span id="admCount">0</span>)</h2>
+            <button type="button" class="btn sm" id="aAdd">+ إضافة منتج جديد</button>
+          </div>
+          <ul class="alist" id="aList"></ul>
+        </div>
+
+        <form class="aform" id="aForm" hidden novalidate>
+          <h3 id="fTitle">منتج جديد</h3>
+          <p style="margin:0 0 12px;font-size:.86rem;color:var(--muted)">ارفعي صورة أو أكثر من هاتفكِ/حاسوبكِ ثم اضغطي «حفظ ونشر المنتج».</p>
+
+          <label>صور المنتج</label>
+          <div class="upload-zone" id="dropZone" tabindex="0" role="button" aria-label="اضغطي لرفع صور المنتج من جهازك">
+            <span class="upload-zone-icon" aria-hidden="true">📷</span>
+            <strong id="upStatusTitle">اضغطي هنا لاختيار صورة من هاتفكِ أو حاسوبكِ</strong>
+            <small>يدعم صور الهاتف (JPG, PNG, WebP) مع ضغط ذكي يحافظ على الدقة والوضوح · يمكنكِ رفع أكثر من صورة</small>
+          </div>
+          <input type="file" id="fFile" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple hidden>
+
+          <div class="uploaded-gallery" id="upGallery"></div>
+
+          <details style="margin-top:10px">
+            <summary style="cursor:pointer;font-size:.88rem;color:var(--wine);font-weight:700">أو أضيفي رابط صورة خارجي / مسار محلي (اختياري)</summary>
+            <div class="url-add-row">
+              <input id="fUrlInput" dir="ltr" placeholder="https://... أو assets/images/name.jpg">
+              <button type="button" class="btn sm ghost" id="fUrlAddBtn">إضافة</button>
+            </div>
+          </details>
+
+          <label for="fName">اسم المنتج *</label>
+          <input id="fName" maxlength="90" placeholder="مثال: حقيبة كروشيه بيج بالورد" required>
+
+          <label for="fDesc">وصف المنتج *</label>
+          <textarea id="fDesc" rows="3" maxlength="400" placeholder="اكتبي تفاصيل الخيط واللون والمقاس..." required></textarea>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label for="fPrice">الثمن (درهم) *</label>
+              <input id="fPrice" type="number" min="1" step="1" placeholder="150" required>
+            </div>
+            <div>
+              <label for="fCat">القسم *</label>
+              <select id="fCat"></select>
+            </div>
+          </div>
+
+          <label for="fBadge">شارة مميزة (اختياري)</label>
+          <input id="fBadge" maxlength="24" placeholder="مثال: جديد، الأكثر طلبًا، قطعة فريدة">
+
+          <label class="chk">
+            <input type="checkbox" id="fVis" checked>
+            <span>ظاهر للزبونات في المتجر</span>
+          </label>
+
+          <p class="err" id="fErr" role="alert"></p>
+          <div class="row">
+            <button type="button" class="btn ghost" id="fCancel">إلغاء</button>
+            <button type="submit" class="btn" id="fSave">حفظ ونشر المنتج ✓</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- التبويب الثاني: تعديل واجهة الهبوط الرئيسية -->
+    <section id="panelHero" hidden>
+      <form class="aform" id="heroForm" style="max-width:680px;margin:0 auto;position:static" novalidate>
+        <h3>تخصيص واجهة صفحة الهبوط (Hero)</h3>
+        <p style="margin:0 0 14px;font-size:.9rem;color:var(--muted)">يمكنكِ تغيير الصورة الكبيرة في أعلى صفحة الهبوط والعنوان الرئيسي متى شئتِ.</p>
+
+        <label>صورة الواجهة الرئيسية</label>
+        <div class="upload-zone" id="heroDropZone" tabindex="0" role="button">
+          <span class="upload-zone-icon" aria-hidden="true">🖼️</span>
+          <strong id="heroUpStatus">اضغطي لرفع صورة جديدة لواجهة الهبوط</strong>
+          <small>تظهر بأبعادها الكاملة الأنيقة في أعلى الصفحة الرئيسية</small>
+        </div>
+        <input type="file" id="heroFile" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+
+        <div style="margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+          <img id="heroPrev" src="assets/images/tote-bag.jpg" alt="معاينة صورة الواجهة" style="width:130px;height:130px;object-fit:contain;border-radius:16px;background:var(--sand);border:2px solid var(--sand-deep)">
+          <div style="flex:1;min-width:200px">
+            <label for="heroUrlInput" style="margin-top:0">أو مسار / رابط الصورة</label>
+            <input id="heroUrlInput" dir="ltr" placeholder="assets/images/tote-bag.jpg أو https://...">
+          </div>
+        </div>
+
+        <label for="heroTitleInput">العنوان الرئيسي للواجهة</label>
+        <input id="heroTitleInput" maxlength="120" required>
+
+        <label for="heroTextInput">النص الترحيبي تحت العنوان</label>
+        <textarea id="heroTextInput" rows="3" maxlength="320" required></textarea>
+
+        <div class="row">
+          <button type="button" class="btn ghost" id="heroResetBtn">استعادة الواجهة الافتراضية</button>
+          <button type="submit" class="btn" id="heroSaveBtn">حفظ وتحديث الواجهة ✓</button>
+        </div>
+      </form>
+    </section>
+
+    <div id="aPreview" class="preview" hidden>
+      <h3 style="color:var(--cocoa);margin:0 0 16px">معاينة بطاقات المتجر الحالية</h3>
+      <div class="grid" id="pGrid"></div>
+    </div>
   </div>
-  <p class="notice" id="notice">التغييرات تُحفظ في هذا المتصفح فقط. للنشر لكل الزوار صدّري JSON واستبدلي <bdi dir="ltr">data/products.json</bdi> (انظري README).</p>
-  <div class="adm-body">
-    <div><button class="btn sm" id="aAdd">+ منتج جديد</button><ul class="alist" id="aList"></ul></div>
-    <form class="aform" id="aForm" hidden novalidate>
-      <h3 id="fTitle"></h3>
-      <label for="fName">اسم المنتج</label><input id="fName" maxlength="80" required>
-      <label for="fDesc">الوصف</label><textarea id="fDesc" rows="3" maxlength="300" required></textarea>
-      <label for="fPrice">الثمن (درهم)</label><input id="fPrice" type="number" min="1" step="1" required>
-      <label for="fCat">القسم</label><select id="fCat"></select>
-      <label for="fImg">رابط الصورة</label><input id="fImg" dir="ltr" placeholder="https://... أو assets/images/name.jpg" required>
-      <label for="fFile">أو ارفعي صورة من هاتفك</label><input type="file" id="fFile" accept="image/*">
-      <img id="fPrev" class="fprev" alt="معاينة الصورة" width="120" height="120">
-      <label class="chk"><input type="checkbox" id="fVis"> ظاهر في المتجر</label>
-      <p class="err" id="fErr" role="alert"></p>
-      <div class="row"><button type="button" class="btn ghost" id="fCancel">إلغاء</button><button class="btn" id="fSave">حفظ المنتج</button></div>
-    </form>
-  </div>
-  <div id="aPreview" class="preview" hidden><h3>معاينة المتجر (لم تُنشر بعد)</h3><div class="grid" id="pGrid"></div></div>
 </div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="js/firebase-config.js"></script>
 <script src="js/app.js"></script>
