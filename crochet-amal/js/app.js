@@ -5,7 +5,9 @@ const CACHE = 'crochetAmal.cache.v1';
 const HERO_KEY = 'crochetAmal.hero.v1';
 const CART_KEY = 'crochetAmal.cart.v1';
 const SESSION = 'crochetAmal.admin';
-const META_DOC_ID = '__site_meta__';
+const META_DOC_ID = CrochetSync.META_DOC_ID;
+// للعرض في رسائل الخطأ فقط؛ الحماية الفعلية في firestore.rules
+const ADMIN_EMAIL = 'crochetamal64@gmail.com';
 
 // Convenience lock only for offline/local device mode: real security is enforced by Firestore rules.
 const PW_HASH = 'bb1b5ca296dc3ffab66629a6bb46eb7a44cab90dd8b18897244418a7ead55e07';
@@ -32,12 +34,9 @@ const withTimeout = (p, ms) => Promise.race([
 const FB = { on: false, db: null, auth: null, fs: null, au: null };
 let FB_INIT_PROMISE = Promise.resolve();
 let READY = Promise.resolve();
-let pendingSaves = 0;
-let publishQueue = Promise.resolve();
-let localQueue = Promise.resolve();
-let draftGeneration = 0;
-let cloudBase = null;
-let initError = null;
+let publishRunning = null;
+let publishQueued = null;
+const syncBusy = () => Boolean(publishRunning || publishQueued);
 
 const state = {
   site: null,
@@ -54,7 +53,12 @@ const state = {
   localUpdatedAt: 0,
   syncedToCloud: true,
   forceLocalLogin: false,
-  adminDirty: false
+  adminDirty: false,
+  // حالة المزامنة: idle | publishing | published | failed | conflict
+  sync: {
+    status: 'idle', loaded: false, baseRevision: null, remoteRevision: null,
+    ids: [], hashes: {}, attempts: [], progressText: '', localBaseRevision: undefined
+  }
 };
 
 /* ---------- IndexedDB Unlimited Local Storage (for Base64 Photos) ---------- */
@@ -327,7 +331,7 @@ function toast(msg, bad = false) {
   t.textContent = msg;
   t.className = 'toast show' + (bad ? ' bad' : '');
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => { t.className = 'toast'; }, 3600);
+  toast.t = setTimeout(() => { t.className = 'toast'; }, bad ? 9000 : 3600);
 }
 
 /* ---------- Data Sanitization ---------- */
@@ -364,24 +368,16 @@ function cleanProducts(list) {
   return out;
 }
 
-function checkDocumentSize(data, label) {
-  // Leave headroom for Firestore field names, indexes and protobuf overhead.
-  if (new Blob([JSON.stringify(data)]).size > 900000) {
-    const error = new Error('حجم ' + label + ' كبير جدًا لـ Firestore؛ قلّلي عدد الصور أو حجمها ثم أعيدي المحاولة.');
-    error.code = 'document-too-large';
-    throw error;
-  }
-}
-
 /* ---------- Local Persistence Helpers ---------- */
-async function saveLocalState(products, heroOverride, syncedToCloud) {
+// 'catalog'       = النسخة العاملة للمشرفة (قد تحتوي تعديلات غير منشورة)
+// 'cloudSnapshot' = آخر نسخة مؤكدة من Firestore (هي ما يراه الزوار)
+async function saveLocalState(products, heroOverride, syncedToCloud, extra = {}) {
   const updatedAt = Date.now();
   state.localUpdatedAt = updatedAt;
   state.syncedToCloud = syncedToCloud;
+  const baseRevision = extra.baseRevision !== undefined ? extra.baseRevision : state.sync.baseRevision;
 
-  const savedInIdb = await idb.set('catalog', {
-    products: clone(products), hero: clone(heroOverride), updatedAt, syncedToCloud, cloudBase: clone(cloudBase)
-  });
+  let ok = await idb.set('catalog', { products: clone(products), updatedAt, syncedToCloud, baseRevision });
 
   if (heroOverride) {
     await idb.set('heroOverride', { ...clone(heroOverride), updatedAt });
@@ -391,64 +387,69 @@ async function saveLocalState(products, heroOverride, syncedToCloud) {
     try { localStorage.removeItem(HERO_KEY); } catch (_) { /* ignore */ }
   }
 
-  // Best-effort mirror to localStorage for small catalogs
-  let savedInLocal = false;
   try {
     const serialized = JSON.stringify(products);
     localStorage.setItem(CACHE, serialized);
     localStorage.setItem(KEY, serialized);
-    localStorage.setItem('crochetAmal.state.v2', JSON.stringify({ products, hero: heroOverride, updatedAt, syncedToCloud, cloudBase }));
-    savedInLocal = true;
-  } catch (_) { /* Preserve any previous backup. */ }
-  if (!savedInIdb && !savedInLocal) throw Object.assign(new Error('تعذّر حفظ النسخة المحلية؛ تحققي من مساحة التخزين وصدّري المسودة.'), { code: 'local-storage-failed' });
+    ok = true;
+  } catch (_) {
+    try { localStorage.removeItem(CACHE); localStorage.removeItem(KEY); } catch (_2) { /* ignore */ }
+  }
+  return ok;
+}
+
+async function saveCloudSnapshot(remote) {
+  return idb.set('cloudSnapshot', {
+    products: clone(remote.products),
+    hero: remote.hero ? clone(remote.hero) : null,
+    revision: remote.revision,
+    savedAt: Date.now()
+  });
 }
 
 async function loadLocalState() {
-  let idbCat = await idb.get('catalog');
-  try {
-    const v2 = JSON.parse(localStorage.getItem('crochetAmal.state.v2') || 'null');
-    if (v2 && Array.isArray(v2.products) && (!idbCat || v2.updatedAt > idbCat.updatedAt)) idbCat = v2;
-  } catch (_) { /* ignore */ }
+  const idbCat = await idb.get('catalog');
   const idbHero = await idb.get('heroOverride');
+  const snap = await idb.get('cloudSnapshot');
+  const snapshot = snap && Array.isArray(snap.products)
+    ? { products: cleanProducts(snap.products), hero: snap.hero || null, revision: snap.revision }
+    : null;
 
-  let hero = idbCat && Object.prototype.hasOwnProperty.call(idbCat, 'hero') ? idbCat.hero : (idbHero || null);
-  if (!hero && !(idbCat && Object.prototype.hasOwnProperty.call(idbCat, 'hero'))) {
+  let hero = idbHero || null;
+  if (!hero) {
     try {
       const rawH = localStorage.getItem(HERO_KEY);
       if (rawH) hero = JSON.parse(rawH);
     } catch (_) { /* ignore */ }
   }
 
-  if (idbCat && Array.isArray(idbCat.products)) {
+  if (idbCat && Array.isArray(idbCat.products) && idbCat.products.length) {
     return {
       products: cleanProducts(idbCat.products),
       updatedAt: Number(idbCat.updatedAt || 0),
       syncedToCloud: idbCat.syncedToCloud !== false,
+      baseRevision: idbCat.baseRevision,   // undefined في النسخ القديمة
       hero,
-      cloudBase: idbCat.cloudBase || null
+      snapshot
     };
   }
 
-  try {
-    const v2 = JSON.parse(localStorage.getItem('crochetAmal.state.v2') || 'null');
-    if (v2 && Array.isArray(v2.products)) return { ...v2, products: cleanProducts(v2.products) };
-  } catch (_) { /* ignore */ }
   for (const k of [KEY, CACHE]) {
     try {
       const raw = localStorage.getItem(k);
       if (raw) {
         const parsed = cleanProducts(JSON.parse(raw));
         if (parsed.length) {
-          return { products: parsed, updatedAt: 1, syncedToCloud: true, hero };
+          return { products: parsed, updatedAt: 1, syncedToCloud: true, baseRevision: undefined, hero, snapshot };
         }
       }
     } catch (_) { /* ignore */ }
   }
 
-  return { products: null, updatedAt: 0, syncedToCloud: true, hero };
+  return { products: null, updatedAt: 0, syncedToCloud: true, baseRevision: undefined, hero, snapshot };
 }
 
-/* ---------- Firebase Firestore Sync ---------- */
+/* ---------- Firebase Firestore Sync (المنطق في js/sync-core.js) ---------- */
 async function fbInit() {
   const cfg = window.FIREBASE_CONFIG;
   if (!cfg || !cfg.projectId) return;
@@ -475,82 +476,94 @@ async function fbInit() {
   Object.assign(FB, { db, auth, fs: fsMod, au: auMod, on: true });
 }
 
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((k) => [k, stableValue(value[k])]));
+// إعادة محاولة التهيئة (مثلًا عند تسجيل الدخول بعد بطء الشبكة)
+async function ensureFirebase(ms = 15000) {
+  if (FB.on) return true;
+  try {
+    await withTimeout(fbInit(), ms);
+  } catch (e) {
+    FB.on = false;
+    logSyncError('init', e);
   }
-  return value;
-}
-function fingerprint(value) { return JSON.stringify(stableValue(value)); }
-function snapshotData(snap) {
-  return snap.docs.map((d) => ({ id: d.id, data: d.data() })).sort((a, b) => a.id.localeCompare(b.id));
-}
-async function fbLoad() {
-  const { collection, getDocsFromServer } = FB.fs;
-  const snap = await getDocsFromServer(collection(FB.db, 'products'));
-  const docs = snapshotData(snap);
-  const meta = docs.find((d) => d.id === META_DOC_ID);
-  const items = docs.filter((d) => d.id !== META_DOC_ID).map((d) => ({ ...d.data, id: d.id }));
-  items.sort((a, b) => Number(a.order ?? 9999) - Number(b.order ?? 9999));
-  return { products: cleanProducts(items), hero: meta && meta.data.hero || null, docs };
+  return FB.on;
 }
 
-async function fbSave(list, heroOverride) {
-  const { collection, doc, runTransaction } = FB.fs;
-  if (!FB.auth || !FB.auth.currentUser) {
-    const e = new Error('يلزم تسجيل الدخول بحساب الإدارة في Firebase.'); e.code = 'auth-required'; throw e;
-  }
-  if (FB.auth.currentUser.email !== 'crochetamal64@gmail.com' || !FB.auth.currentUser.emailVerified) {
-    const e = new Error('يلزم حساب الإدارة المصرح به ببريد موثّق.'); e.code = 'auth-required'; throw e;
-  }
-  if (!cloudBase) {
-    const e = new Error('لا توجد نسخة سحابية مرجعية لهذه المسودة. صدّريها أولاً وتحققي من البيانات السحابية قبل إعادة تطبيق التعديلات.'); e.code = 'conflict'; throw e;
-  }
-  const remote = await fbLoad();
-  if (fingerprint(remote.docs) !== fingerprint(cloudBase)) {
-    const e = new Error('تغيّرت البيانات السحابية منذ بدء هذه المسودة. صدّري المسودة وراجعي النسخة السحابية قبل إعادة تطبيق التعديلات.'); e.code = 'conflict'; throw e;
-  }
-  const col = collection(FB.db, 'products');
-  const ids = new Set();
-  const now = Date.now();
-  const previous = new Map(cloudBase.map((d) => [d.id, d.data]));
-  const ops = [];
-  list.forEach((p, order) => {
-    if (!p.id || p.id === META_DOC_ID || p.id.includes('/') || ids.has(p.id)) {
-      const e = new Error('معرّف منتج غير صالح أو مكرر.'); e.code = 'invalid-id'; throw e;
-    }
-    ids.add(p.id);
-    const core = { ...(previous.get(p.id) || {}), ...p, order };
-    delete core.updatedAt;
-    checkDocumentSize(core, 'المنتج ' + (p.name || p.id));
-    const old = previous.get(p.id);
-    const oldCore = old && { ...old }; if (oldCore) delete oldCore.updatedAt;
-    if (fingerprint(oldCore) !== fingerprint(core)) ops.push({ id: p.id, data: { ...core, updatedAt: now } });
-  });
-  // Delete only documents present in the baseline, never the metadata or unknown products.
-  const knownIds = new Set(cleanProducts(cloudBase.filter((d) => d.id !== META_DOC_ID).map((d) => ({ ...d.data, id: d.id }))).map((p) => p.id));
-  cloudBase.forEach((d) => { if (knownIds.has(d.id) && !ids.has(d.id)) ops.push({ id: d.id, delete: true }); });
-  const meta = { ...(previous.get(META_DOC_ID) || {}), hero: heroOverride, updatedAt: now, revision: (previous.get(META_DOC_ID)?.revision || 0) + 1 };
-  checkDocumentSize(meta, 'إعدادات الواجهة');
-  ops.push({ id: META_DOC_ID, data: meta });
-  if (ops.length > 450 || new Blob([JSON.stringify(ops)]).size > 8000000) {
-    const e = new Error('حجم أو عدد التغييرات أكبر من الحد الآمن للنشر الذري؛ قلّلي التغييرات أو الصور وحاولي مجددًا.'); e.code = 'batch-too-large'; throw e;
-  }
-  const checkIds = new Set([...cloudBase.map((d) => d.id), ...ops.map((o) => o.id)]);
-  await runTransaction(FB.db, async (tx) => {
-    for (const id of checkIds) {
-      const snap = await tx.get(doc(col, id));
-      const expected = previous.get(id);
-      if (fingerprint(snap.exists() ? snap.data() : null) !== fingerprint(expected || null)) {
-        const e = new Error('تغيّرت البيانات السحابية أثناء النشر؛ صدّري المسودة وراجعي التغييرات.'); e.code = 'conflict'; throw e;
+const syncDeps = () => ({ fs: FB.fs, db: FB.db, cleanProducts });
+
+async function fbLoad() {
+  return CrochetSync.load(syncDeps());
+}
+
+function applyRemoteBaseline(remote, keepRevision = false) {
+  const s = state.sync;
+  s.ids = remote.ids.slice();
+  s.hashes = { ...remote.hashes };
+  s.remoteRevision = remote.revision;
+  if (!keepRevision) s.baseRevision = remote.revision;
+  s.loaded = true;
+}
+
+async function fbSave(list, heroOverride, extra = {}) {
+  const s = state.sync;
+  try {
+    const result = await CrochetSync.publish(
+      syncDeps(), list, heroOverride,
+      { revision: s.baseRevision, ids: s.ids, hashes: s.hashes },
+      {
+        ownRevisions: s.attempts,
+        onProgress: ({ done, total }) => {
+          s.progressText = '⏳ جارٍ النشر ' + done + '/' + total + '…';
+          renderSyncStatus();
+        },
+        ...extra
       }
-    }
-    ops.forEach((op) => op.delete ? tx.delete(doc(col, op.id)) : tx.set(doc(col, op.id), op.data));
+    );
+    s.baseRevision = result.revision;
+    s.remoteRevision = result.revision;
+    s.ids = result.ids;
+    s.hashes = result.hashes;
+    s.attempts = [];
+    return result;
+  } catch (err) {
+    if (err && err.attemptRevision) s.attempts.push(err.attemptRevision);
+    throw err;
+  }
+}
+
+// تسجيل مفيد دون كلمات مرور أو رموز مصادقة
+function logSyncError(op, err, extra) {
+  console.error('[Crochet.Amal sync] فشلت العملية: ' + op, {
+    kind: CrochetSync.classifyError(err),
+    code: err && err.code,
+    stage: err && err.stage,
+    message: String((err && err.message) || err).slice(0, 300),
+    ...(extra || {})
   });
-  const next = new Map(cloudBase.map((d) => [d.id, d.data]));
-  ops.forEach((op) => op.delete ? next.delete(op.id) : next.set(op.id, op.data));
-  return Array.from(next, ([id, data]) => ({ id, data })).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function describeSyncError(err) {
+  const kind = CrochetSync.classifyError(err);
+  const user = FB.auth && FB.auth.currentUser;
+  const email = user && user.email;
+  const d = (err && err.detail) || {};
+  const texts = {
+    'permission-denied': () => (email && email.toLowerCase() === ADMIN_EMAIL
+      ? 'رفض Firebase الكتابة (permission-denied) رغم أن الحساب هو حساب الإدارة. الأرجح أن القواعد المنشورة في Firebase Console لا تطابق ملف firestore.rules؛ انسخي القواعد أدناه وانشريها.'
+      : 'رفض Firebase الكتابة (permission-denied). الحساب الحالي ' + (email || '(غير معروف)') + ' ليس حساب الإدارة (' + ADMIN_EMAIL + ')؛ سجّلي الخروج وادخلي بحساب الإدارة.'),
+    unauthenticated: () => 'انتهت جلسة تسجيل الدخول في Firebase. سجّلي الخروج ثم ادخلي مجددًا بالبريد وكلمة المرور.',
+    timeout: () => 'انتهت مهلة الاتصال أثناء النشر (الشبكة بطيئة). تعديلاتكِ محفوظة على جهازكِ؛ اضغطي «إعادة محاولة النشر».',
+    network: () => 'تعذّر الوصول إلى خوادم Firebase (لا اتصال أو الاتصال مقطوع). تعديلاتكِ محفوظة على جهازكِ؛ أعيدي المحاولة عند عودة الاتصال.',
+    quota: () => 'تجاوزتِ الحصة اليومية المجانية لـ Firestore (خطة Spark). أعيدي المحاولة لاحقًا؛ تعديلاتكِ محفوظة على جهازكِ.',
+    'doc-too-large': () => 'حجم بيانات «' + (d.label || d.id) + '» (' + (d.bytes / 1048576).toFixed(2) + ' MB) يتجاوز حد Firestore للمستند الواحد (1 MB). احذفي بعض صور هذا العنصر أو استبدليها بصور أصغر ثم انشري من جديد.',
+    'invalid-data': () => 'رفض Firestore البيانات المرسلة (حجم أو تنسيق غير مقبول). راجعي صور المنتج الأخيرة ثم أعيدي المحاولة.',
+    conflict: () => 'النسخة السحابية تغيّرت بعد آخر مرة حمّلتِها (ربما من جهاز آخر). لم يُنشر شيء، وتعديلاتكِ محفوظة محليًا.',
+    'no-baseline': () => 'تعذّرت قراءة النسخة السحابية الحالية، ولا يمكن النشر بأمان قبل ذلك. تحققي من الاتصال ثم أعيدي المحاولة.',
+    'empty-list': () => 'لم يُنشر: القائمة فارغة وسيؤدي النشر إلى حذف كل المنتجات.',
+    'duplicate-id': () => 'يوجد منتجان بالمعرّف نفسه؛ لم يُنشر شيء.',
+    'bad-id': () => 'منتج بمعرّف غير صالح؛ لم يُنشر شيء.',
+    unknown: () => 'حدث خطأ غير متوقع أثناء النشر (' + String((err && (err.code || err.message)) || '').slice(0, 80) + '). تعديلاتكِ محفوظة على جهازكِ.'
+  };
+  return { kind, text: (texts[kind] || texts.unknown)() };
 }
 
 /* ---------- WhatsApp Links & Cart ---------- */
@@ -962,20 +975,82 @@ async function sha256(t) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+const cloudConfigured = () => Boolean(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId);
+const cloudSession = () => Boolean(FB.on && FB.auth && FB.auth.currentUser);
+
 function updateSyncPill(status, text) {
   const pill = $('syncPill');
   if (!pill) return;
-  pill.className = 'sync-pill' + (status === 'ok' ? ' ok' : status === 'warn' ? ' warn' : '');
+  pill.className = 'sync-pill' + (status === 'ok' ? ' ok' : status === 'warn' ? ' warn' : status === 'bad' ? ' bad' : '');
   pill.textContent = text;
+}
+
+// الحالات: محفوظ محليًا | جارٍ النشر | منشور سحابيًا | فشل النشر
+function renderSyncStatus() {
+  const s = state.sync;
+  if (s.status === 'publishing') return updateSyncPill('warn', s.progressText || '⏳ جارٍ النشر…');
+  if (s.status === 'failed') return updateSyncPill('bad', '✕ فشل النشر · محفوظ على جهازكِ فقط');
+  if (s.status === 'conflict') return updateSyncPill('bad', '⚠ نسخة سحابية أحدث · لم يُنشر شيء');
+  if (!cloudConfigured()) return updateSyncPill('warn', 'حفظ محلي على هذا الجهاز');
+  if (!cloudSession()) return updateSyncPill('warn', 'غير متصلة بحساب Firebase · لا نشر سحابي');
+  if (!state.syncedToCloud) return updateSyncPill('warn', '● تعديلات محفوظة محليًا وغير منشورة');
+  return updateSyncPill('ok', '✓ منشور سحابيًا للجميع');
+}
+
+function setSyncStatus(status) {
+  state.sync.status = status;
+  state.sync.progressText = '';
+  renderSyncStatus();
+}
+
+let rulesTextCache = null;
+async function loadRulesText() {
+  if (rulesTextCache) return rulesTextCache;
+  try {
+    const r = await fetch('firestore.rules', { cache: 'no-store' });
+    if (r.ok) rulesTextCache = await r.text();
+  } catch (_) { /* ignore */ }
+  return rulesTextCache;
+}
+
+async function showSyncProblem(kind, text) {
+  const box = $('rulesAlert');
+  if (!box) return;
+  if ($('syncErrMsg')) $('syncErrMsg').textContent = text;
+  const help = $('rulesHelp');
+  if (help) help.hidden = kind !== 'permission-denied';
+  if ($('loadCloudBtn')) $('loadCloudBtn').hidden = kind !== 'conflict';
+  box.hidden = false;
+
+  if (kind === 'permission-denied' && $('rulesCode')) {
+    // نعرض محتوى firestore.rules نفسه (مصدر واحد)، لا قواعد مولّدة حسب بريد من سجّل الدخول
+    const rulesText = (await loadRulesText()) || 'تعذّر تحميل firestore.rules؛ انسخي محتوى الملف من المستودع.';
+    $('rulesCode').textContent = rulesText;
+    if ($('copyRulesBtn')) {
+      $('copyRulesBtn').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(rulesText);
+          toast('تم نسخ قواعد Firestore ✓ الصقيها في Firebase Console > Firestore > Rules ثم Publish');
+        } catch (_) {
+          toast('انسخي النص الموجود في المربع الأسود يدويًا.');
+        }
+      };
+    }
+  }
+}
+
+function hideSyncProblem() {
+  if ($('rulesAlert')) $('rulesAlert').hidden = true;
 }
 
 function refreshAdminConnectionNotice() {
   if (!$('admin') || $('admin').hidden) return;
-  if (FB.on && FB.auth && FB.auth.currentUser) {
-    updateSyncPill(state.syncedToCloud ? 'ok' : 'warn', state.syncedToCloud ? 'متصل بـ Firebase' : 'تعديلات محفوظة محليًا · لم تُنشر');
-    $('notice').textContent = 'تتطلب التعديلات نجاح النشر السحابي لتظهر لجميع الزوار.';
+  renderSyncStatus();
+  if (cloudSession()) {
+    $('notice').textContent = 'أنتِ متصلة بـ Firebase (' + (FB.auth.currentUser.email || 'حساب المسؤولة') + '): كل تعديل يُنشر لكل الزوار بعد التأكد من حفظه في السحابة. راقبي حالة النشر في الشارة أعلاه؛ إن فشل النشر تبقى تعديلاتكِ على جهازكِ ويمكنكِ إعادة المحاولة.';
+  } else if (cloudConfigured()) {
+    $('notice').textContent = 'أنتِ في الوضع المحلي: التعديلات محفوظة على هذا الجهاز فقط ولن تظهر للزوار. للنشر سجّلي الخروج ثم ادخلي بالبريد وكلمة المرور.';
   } else {
-    updateSyncPill('warn', 'حفظ محلي على هذا الجهاز');
     $('notice').textContent = 'الوضع المحلي مفعّل: الصور والتعديلات تُحفظ فورًا في متصفحكِ وتظهر مباشرة في صفحة الهبوط على هذا الجهاز.';
   }
 }
@@ -1172,10 +1247,19 @@ function collectAndApplyOpenForm(silentIfEmpty = false) {
     visible: $('fVis').checked
   };
 
+  // لا نُسقط أي صورة بصمت: نمنع الحفظ إن تجاوز المستند حد Firestore
+  const docBytes = CrochetSync.byteLength(JSON.stringify({ ...data, id: 'x', order: 0 }));
+  if (docBytes > CrochetSync.DOC_BYTE_LIMIT) {
+    const msg = 'حجم صور هذا المنتج (' + (docBytes / 1048576).toFixed(2) + ' MB) يتجاوز حد Firestore (1 MB للمنتج). احذفي صورة أو أكثر ثم احفظي.';
+    $('fErr').textContent = msg;
+    toast(msg, true);
+    return false;
+  }
+
   if (state.editing) {
     Object.assign(state.editing, data);
   } else {
-    state.draft.unshift({ id: 'p-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)), ...data });
+    state.draft.unshift({ id: 'p-' + Date.now().toString(36), ...data });
   }
 
   state.adminDirty = true;
@@ -1201,47 +1285,118 @@ function populateHeroForm() {
   $('heroPrev').dataset.currentImg = h.image;
 }
 
-async function publish(auto = false) {
+// نشر واحد في كل مرة؛ الطلبات التي تصل أثناء النشر تُدمج في تشغيل لاحق واحد يستعمل أحدث مسودة
+function publish(auto = false) {
+  if (!publishRunning) {
+    publishRunning = doPublish(auto).finally(() => { publishRunning = null; });
+    return publishRunning;
+  }
+  if (!publishQueued) {
+    publishQueued = publishRunning.catch(() => {}).then(() => {
+      publishQueued = null;
+      return publish(auto);
+    });
+  }
+  return publishQueued;
+}
+
+async function failPublish(op, err, kind, text) {
+  logSyncError(op, err);
+  setSyncStatus(kind === 'conflict' ? 'conflict' : 'failed');
+  await showSyncProblem(kind, text);
+  toast('لم يُنشر سحابيًا: ' + text, true);
+  return false;
+}
+
+async function doPublish(auto) {
   if (!auto && !collectAndApplyOpenForm(true)) return false;
-  const products = clone(state.draft), hero = clone(state.heroOverride);
-  const generation = ++draftGeneration;
-  pendingSaves++;
-  state.syncedToCloud = false;
-  localQueue = localQueue.catch(() => {}).then(() => saveLocalState(products, hero, false));
-  const localSave = localQueue;
-  // Queue whole operations: an older write can never finish after a newer one.
-  const work = publishQueue.then(async () => {
-    state.published = clone(products);
-    updateSyncPill('warn', '⏳ جارٍ النشر السحابي…');
+
+  // 1) نسخة محلية احتياطية فقط، وليست دليلًا على النشر
+  setSyncStatus('publishing');
+  const localOk = await saveLocalState(state.draft, state.heroOverride, false);
+  state.published = clone(state.draft);
+  if (!$('aPreview').hidden && $('pGrid')) fill($('pGrid'), state.draft, true);
+  if (!localOk) console.warn('[Crochet.Amal sync] تعذّر الحفظ المحلي (IndexedDB/localStorage)');
+
+  // وضع محلي بحت (Firebase غير مُعدّ)
+  if (!cloudConfigured()) {
+    await saveLocalState(state.draft, state.heroOverride, true);
+    setSyncStatus('idle');
+    toast('تم الحفظ على هذا الجهاز (الوضع المحلي) ✓');
+    return true;
+  }
+
+  // Firebase مُعدّ لكن لا توجد جلسة: لا نعرض أي نجاح
+  if (!cloudSession()) {
+    return failPublish('auth', { code: 'unauthenticated' }, 'unauthenticated',
+      'لم تسجّلي الدخول بحساب Firebase، لذا حُفظت التعديلات على جهازكِ فقط ولم تُنشر. سجّلي الخروج ثم ادخلي بالبريد وكلمة المرور.');
+  }
+
+  // لا نشر دون قراءة ناجحة للنسخة السحابية (أساس كشف التعارض والحذف الآمن)
+  if (!state.sync.loaded) {
     try {
-      await localSave;
-      await FB_INIT_PROMISE;
-      await READY;
-      if (!FB.on) throw initError || Object.assign(new Error('تعذّر تهيئة Firebase أو الاتصال به.'), { code: 'firebase-unavailable' });
-      cloudBase = await fbSave(products, hero);
-      // Persist the newest draft with the advanced baseline, never overwrite it with an older snapshot.
-      localQueue = localQueue.catch(() => {}).then(() => saveLocalState(
-        generation === draftGeneration ? products : state.draft,
-        generation === draftGeneration ? hero : state.heroOverride, generation === draftGeneration));
-      await localQueue;
-      if (generation === draftGeneration) {
-        updateSyncPill('ok', '✓ تم النشر سحابيًا للجميع');
-        toast('تم نشر التغييرات والصور لكل الزوار ✓');
-      }
+      const remote = await CrochetSync.withTimeout(fbLoad(), 20000, 'load');
+      applyRemoteBaseline(remote);
+    } catch (err) {
+      const d = describeSyncError({ code: 'no-baseline' });
+      return failPublish('load-before-publish', err, 'no-baseline', d.text);
+    }
+  }
+
+  // 2) النشر الفعلي إلى Firestore
+  const opts = { force: false, allowEmpty: false };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const result = await fbSave(state.draft, state.heroOverride, opts);
+      await saveLocalState(state.draft, state.heroOverride, true, { baseRevision: result.revision });
+      await saveCloudSnapshot({ products: state.draft, hero: state.heroOverride, revision: result.revision });
+      state.adminDirty = false;
+      hideSyncProblem();
+      setSyncStatus('published');
+      toast('تم النشر سحابيًا للجميع ✓');
       return true;
     } catch (err) {
-      console.error('Firestore publish:', { code: err.code || 'unknown', message: err.message || 'unknown' });
-      const code = String(err.code || '');
-      const reason = /permission-denied/.test(code) ? 'رفض Firestore الصلاحية؛ تحققي من الحساب وقواعد المشروع.' :
-        /unavailable|deadline-exceeded|network/.test(code) ? 'تعذّر الاتصال بـ Firestore؛ تحققي من الشبكة وأعيدي المحاولة.' :
-        (err.message || 'خطأ غير معروف');
-      updateSyncPill('warn', 'فشل النشر: ' + reason + (code === 'local-storage-failed' ? '' : ' · محفوظ محليًا'));
-      toast('فشل النشر: ' + reason + (code === 'local-storage-failed' ? '' : ' التعديلات محفوظة محليًا؛ أعيدي المحاولة.'), true);
-      return false;
+      const d = describeSyncError(err);
+      if (d.kind === 'empty-list' && !opts.allowEmpty &&
+          confirm('قائمة المنتجات فارغة. النشر سيحذف كل المنتجات من المتجر لجميع الزوار. هل أنتِ متأكدة؟')) {
+        opts.allowEmpty = true;
+        continue;
+      }
+      if (d.kind === 'conflict' && !opts.force &&
+          confirm('تم نشر تغييرات أحدث على السحابة من جهاز آخر بعد آخر تحميل لكِ.\n\nموافق = استبدال النسخة السحابية بنسختكِ الحالية.\nإلغاء = عدم النشر مع بقاء تعديلاتكِ محفوظة محليًا.')) {
+        opts.force = true;
+        continue;
+      }
+      return failPublish('publish', err, d.kind, d.text);
     }
-  });
-  publishQueue = work.catch(() => false);
-  try { return await work; } finally { pendingSaves--; }
+  }
+  return false;
+}
+
+// تحميل النسخة السحابية بدل المحلية (بعد حفظ نسخة احتياطية من المحلية)
+async function adoptCloudVersion() {
+  if (!cloudSession()) { toast('سجّلي الدخول بحساب Firebase أولًا.', true); return; }
+  if (!confirm('سيتم استبدال مسودتكِ الحالية بالنسخة السحابية. ستُحفظ نسخة احتياطية من مسودتكِ على هذا الجهاز. متابعة؟')) return;
+  try {
+    await idb.set('catalogBackup', { products: clone(state.draft), hero: state.heroOverride ? clone(state.heroOverride) : null, savedAt: Date.now() });
+    const remote = await CrochetSync.withTimeout(fbLoad(), 20000, 'load');
+    applyRemoteBaseline(remote);
+    state.draft = clone(remote.products.length ? remote.products : state.base);
+    state.heroOverride = remote.hero || null;
+    state.published = clone(state.draft);
+    await saveLocalState(state.draft, state.heroOverride, true, { baseRevision: remote.revision });
+    await saveCloudSnapshot(remote);
+    state.adminDirty = false;
+    hideSyncProblem();
+    setSyncStatus('published');
+    populateHeroForm();
+    renderList();
+    toast('تم تحميل النسخة السحابية ✓');
+  } catch (err) {
+    const d = describeSyncError(err);
+    logSyncError('adopt-cloud', err);
+    toast(d.text, true);
+  }
 }
 
 function exportJson() {
@@ -1339,7 +1494,7 @@ function wireAdmin() {
       const wantCloud = Boolean(window.FIREBASE_CONFIG && !state.forceLocalLogin);
       if (wantCloud) {
         await FB_INIT_PROMISE;
-        if (!FB.on) {
+        if (!(await ensureFirebase())) {
           err.textContent = 'تعذّر الاتصال بـ Firebase حاليًا. اضغطي الزر أدناه للدخول بالوضع المحلي فورًا.';
           return;
         }
@@ -1524,6 +1679,8 @@ function wireAdmin() {
   };
 
   $('aPub').onclick = () => publish(false);
+  if ($('retryPubBtn')) $('retryPubBtn').onclick = () => publish(true);
+  if ($('loadCloudBtn')) $('loadCloudBtn').onclick = adoptCloudVersion;
   $('aExp').onclick = exportJson;
   $('aImp').onchange = importJson;
   $('aReset').onclick = resetAll;
@@ -1533,10 +1690,10 @@ function wireAdmin() {
 
   if ($('goStoreBtn')) {
     $('goStoreBtn').onclick = async (e) => {
-      if (pendingSaves > 0) {
+      if (syncBusy()) {
         e.preventDefault();
-        toast('انتظري ثانية ريثما يكتمل حفظ الصور…');
-        while (pendingSaves > 0) {
+        toast('انتظري ثانية ريثما يكتمل النشر…');
+        while (syncBusy()) {
           await new Promise((r) => setTimeout(r, 200));
         }
         location.href = './';
@@ -1545,7 +1702,7 @@ function wireAdmin() {
   }
 
   window.addEventListener('beforeunload', (e) => {
-    if (pendingSaves > 0) {
+    if (syncBusy()) {
       e.preventDefault();
       e.returnValue = '';
     }
@@ -1570,15 +1727,30 @@ async function init() {
 
   wireStorefrontUI();
 
-  // 1. Load local IndexedDB / localStorage state immediately so uploaded photos show instantly!
+  // 1. الحالة المحلية فورًا: للمشرفة = النسخة العاملة، وللزائر = آخر نسخة سحابية مؤكدة
   const local = await loadLocalState();
-  cloudBase = local.cloudBase || null;
-  // A visitor must never see an unpublished administrator draft as published content.
-  const useLocal = IS_ADMIN || local.syncedToCloud;
-  state.published = useLocal && local.products ? clone(local.products) : clone(state.base);
-  state.heroOverride = useLocal ? (local.hero || null) : null;
+  const cloudOn = cloudConfigured();
+  const useWorking = IS_ADMIN || !cloudOn;
+  if (useWorking && local.products) {
+    state.published = clone(local.products);
+    state.heroOverride = local.hero || null;
+  } else if (useWorking && local.snapshot) {
+    state.published = clone(local.snapshot.products);
+    state.heroOverride = local.snapshot.hero || null;
+  } else if (local.snapshot) {
+    state.published = clone(local.snapshot.products);
+    state.heroOverride = local.snapshot.hero || null;
+  } else if (local.products && local.syncedToCloud) {
+    state.published = clone(local.products);      // نسخة قديمة كانت متزامنة
+    state.heroOverride = local.hero || null;
+  } else {
+    state.published = clone(state.base);          // تعديلات غير منشورة لا تُعرض كأنها منشورة
+    state.heroOverride = null;
+  }
   state.localUpdatedAt = local.updatedAt;
   state.syncedToCloud = local.syncedToCloud;
+  state.sync.localBaseRevision = local.baseRevision;
+  state.sync.baseRevision = local.baseRevision === undefined ? null : local.baseRevision;
 
   const goHash = () => {
     if (location.hash) {
@@ -1600,51 +1772,90 @@ async function init() {
     }
   }
 
-  // 2. Connect to Firebase in background and sync latest cloud products & hero
+  // 2. الاتصال بـ Firebase في الخلفية ومطابقة النسخة السحابية
   FB_INIT_PROMISE = (async () => {
     try {
-      await withTimeout(fbInit(), 6500);
+      await withTimeout(fbInit(), 12000);
     } catch (e) {
       FB.on = false;
-      initError = e;
-      console.error('Firebase init:', { code: e.code || 'unknown', message: e.message });
-      if (!IS_ADMIN) toast('تعذّر الاتصال بالسحابة؛ قد تكون بيانات المتجر المعروضة قديمة.', true);
+      logSyncError('init', e);
     }
   })();
 
   READY = (async () => {
     await FB_INIT_PROMISE;
-    if (FB.on) {
-      try {
-        const remote = await withTimeout(fbLoad(), 12000);
-        const hasDraft = IS_ADMIN && !state.syncedToCloud;
-        if (!hasDraft && !state.adminDirty) {
-          cloudBase = remote.docs;
-          // An empty, never-initialized collection uses the bundled starter catalog.
-          state.published = remote.docs.length ? remote.products : clone(state.base);
-          state.heroOverride = remote.hero;
-          if (IS_ADMIN || local.syncedToCloud) await saveLocalState(state.published, state.heroOverride, true);
-          if (!IS_ADMIN) {
-            renderSite(); renderStore(); goHash();
-          } else if (!$('admin').hidden) {
-            state.draft = clone(state.published); populateHeroForm(); renderList();
-          }
-        } else if (hasDraft) {
-          updateSyncPill('warn', 'مسودة محلية غير منشورة · تحققي من التعارض قبل النشر');
-        }
-      } catch (e) {
-        console.error('Firestore load:', { code: e.code || 'unknown', message: e.message });
-        if (IS_ADMIN) updateSyncPill('warn', 'تعذّر تحميل السحابة · البيانات المحلية قديمة أو غير منشورة');
-        else toast('تعذّر تحديث بيانات المتجر من السحابة؛ قد تكون المعروضة قديمة.', true);
-      }
+    if (!FB.on) {
+      if (IS_ADMIN) refreshAdminConnectionNotice();
+      return;
+    }
 
-      if (IS_ADMIN) {
-        if ($('admin').hidden && FB.auth && FB.auth.currentUser) {
-          openAdmin();
-        } else {
-          refreshAdminConnectionNotice();
-        }
+    let remote;
+    try {
+      try {
+        remote = await withTimeout(fbLoad(), 12000);
+      } catch (_) {
+        remote = await withTimeout(fbLoad(), 12000);
       }
+    } catch (e) {
+      // فشل القراءة: لا نغيّر شيئًا ولا نستبدل أي نسخة بأخرى
+      logSyncError('load', e);
+      if (IS_ADMIN) refreshAdminConnectionNotice();
+      return;
+    }
+
+    if (remote.skipped && remote.skipped.length) {
+      console.warn('[Crochet.Amal sync] مستندات غير صالحة تُركت دون تعديل:', remote.skipped.length);
+    }
+    const initialised = remote.hasMeta || remote.products.length > 0;
+    if (initialised) await saveCloudSnapshot(remote);
+
+    if (!IS_ADMIN) {
+      applyRemoteBaseline(remote);
+      if (initialised) {
+        state.published = remote.products;
+        state.heroOverride = remote.hero || null;     // قد تكون الإعدادات حُذفت عمدًا
+        renderSite();
+        renderStore();
+        goHash();
+      }
+      return;
+    }
+
+    // لوحة الإدارة
+    const unsynced = !state.syncedToCloud;
+    if (!initialised) {
+      applyRemoteBaseline(remote);                    // السحابة فارغة: أول نشر سيرفع الكتالوج
+    } else if (!unsynced) {
+      applyRemoteBaseline(remote);
+      state.published = remote.products;
+      state.heroOverride = remote.hero || null;
+      await saveLocalState(state.published, state.heroOverride, true, { baseRevision: remote.revision });
+      if (!$('admin').hidden && !state.adminDirty) {
+        state.draft = clone(state.published);
+        populateHeroForm();
+        renderList();
+      }
+    } else {
+      // تعديلات محلية غير منشورة: نحتفظ بها دائمًا، ونكشف التعارض بدل الكتابة فوق السحابة
+      const lb = state.sync.localBaseRevision;
+      const legacy = lb === undefined || lb === null;   // نسخة محلية قديمة بلا رقم نسخة
+      const legacyAdopt = legacy && state.localUpdatedAt > remote.updatedAt;
+      if (lb === remote.revision || legacyAdopt) {
+        applyRemoteBaseline(remote);
+      } else {
+        applyRemoteBaseline(remote, true);
+        if (legacy) state.sync.baseRevision = '__unknown__';
+        state.sync.status = 'conflict';
+        await showSyncProblem('conflict', describeSyncError({ code: 'conflict' }).text +
+          ' اختاري: نشر نسختكِ (استبدال السحابة) أو تحميل النسخة السحابية.');
+      }
+    }
+
+    if (!$('admin').hidden || (FB.auth && FB.auth.currentUser)) {
+      if ($('admin').hidden && FB.auth && FB.auth.currentUser) openAdmin();
+      else refreshAdminConnectionNotice();
+    } else {
+      refreshAdminConnectionNotice();
     }
   })();
 

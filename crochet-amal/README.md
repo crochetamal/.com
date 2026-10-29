@@ -53,3 +53,12 @@
 8. ارفعي الملفات إلى GitHub. ثم ادخلي من «© 2026» بالبريد وكلمة المرور، واضغطي **نشر الآن** مرة واحدة ليُرفع الكتالوج الحالي إلى Firebase. بعدها كل تعديل يُنشر تلقائيًا.
 
 ملاحظات: عند تفعيل Firebase لا تُستعمل كلمة المرور المحلية القديمة (الدخول بالبريد). ما دام `FIREBASE_CONFIG` يساوي `null` يعمل الموقع بالوضع المحلي السابق. إن فشل الاتصال بـ Firebase يعرض الموقع كتالوج `data/products.json`.
+
+
+## ملاحظات النشر بعد إصلاح المزامنة
+- `js/sync-core.js` يحوي منطق القراءة/النشر، و`js/app.js` الواجهة. الموقع المنشور هو **جذر المستودع** (`index.html` و`admin.html` و`js/`)؛ مجلد `crochet-amal/` و`app.js` في الجذر نسخ مطابقة احتياطية.
+- مسارات Firestore: `products/{id}` لكل منتج، و`products/__site_meta__` لإعدادات الواجهة (`hero`, `revision`, `productIds`).
+- حالة النشر تظهر في الشارة: **منشور سحابيًا** / **تعديلات غير منشورة** / **جارٍ النشر** / **فشل النشر**. عند الفشل تبقى التعديلات على الجهاز ويمكن «إعادة محاولة النشر».
+- **قواعد Firestore**: الصقي محتوى `firestore.rules` في Firebase Console › Firestore › Rules ثم Publish. الكتابة مقصورة على `crochetamal64@gmail.com`.
+- يُنصح بتعطيل التسجيل الذاتي: Authentication › Settings › User actions › إلغاء «Enable create (sign-up)».
+- الاختبارات: `node --test tests/sync.test.js tests/rules.static.test.js` و`node tests/browser.e2e.js` (يحتاج Playwright)، و`tests/rules.emulator.test.js` يحتاج Firebase Emulator.
