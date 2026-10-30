@@ -1,23 +1,32 @@
-// Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-  import { getDatabase } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+// Firebase web configuration is public; protect data with Firebase Security Rules.
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDn3HXYY5wqyx_6D6Ahour2-l-i1yHaoR8",
+  authDomain: "amale-crochet.firebaseapp.com",
+  databaseURL: "https://amale-crochet-default-rtdb.firebaseio.com",
+  projectId: "amale-crochet",
+  storageBucket: "amale-crochet.firebasestorage.app",
+  messagingSenderId: "1029434187104",
+  appId: "1:1029434187104:web:6077fb2a47081df2e51205",
+  measurementId: "G-CXK9TCS9NH"
+};
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBN-Phj91OVhuUx3a2XqDVysHifB_Ycjqc",
-    authDomain: "amal-19669.firebaseapp.com",
-    databaseURL: "https://amal-19669-default-rtdb.firebaseio.com",
-    projectId: "amal-19669",
-    storageBucket: "amal-19669.firebasestorage.app",
-    messagingSenderId: "842263910623",
-    appId: "1:842263910623:web:72bdb017fed74a7bf7316a",
-    measurementId: "G-GFTLPJNGX7"
-  };
+// Keep Analytics, Firestore and Authentication on the same SDK version.
+window.FIREBASE_SDK_BASE = 'https://www.gstatic.com/firebasejs/13.1.0/';
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getdatabase(app);
-export { getdatabase}
+// Analytics is optional and must never block the storefront or admin panel.
+(() => {
+  const config = window.FIREBASE_CONFIG;
+  if (!config || !config.measurementId) return;
+
+  Promise.all([
+    import(window.FIREBASE_SDK_BASE + 'firebase-app.js'),
+    import(window.FIREBASE_SDK_BASE + 'firebase-analytics.js')
+  ]).then(async ([firebase, analytics]) => {
+    if (!(await analytics.isSupported())) return;
+    const app = firebase.getApps().find((candidate) => candidate.name === '[DEFAULT]')
+      || firebase.initializeApp(config);
+    analytics.getAnalytics(app);
+  }).catch((error) => {
+    console.warn('Firebase Analytics unavailable:', error);
+  });
+})();
