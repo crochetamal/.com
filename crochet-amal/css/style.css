@@ -1559,6 +1559,11 @@ input:focus, select:focus, textarea:focus {
   color: #8a5300;
   border-color: #f0cf8e;
 }
+.sync-pill.bad {
+  background: #fdeaea;
+  color: #a12626;
+  border-color: #efb4b4;
+}
 
 .adm-actions {
   display: flex;

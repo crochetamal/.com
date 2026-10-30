@@ -104,9 +104,9 @@ function runConfig(context, filename = 'js/firebase-config.js', transform = (s) 
 function runFirestoreInit(context, filename = 'js/app.js') {
   const source = read(filename);
   const start = source.indexOf('async function fbInit() {');
-  const end = source.indexOf('\nasync function fbLoad()', start);
+  const end = source.indexOf('\n}\n', start);
   assert.ok(start !== -1 && end !== -1, 'Firebase initializer exists');
-  const initializer = source.slice(start, end);
+  const initializer = source.slice(start, end + 2);
   new vm.Script(initializer, { filename });
   vm.runInContext(mockImports(initializer), context, { filename });
   return context.fbInit();
@@ -244,6 +244,8 @@ for (const prefix of ['', 'crochet-amal/']) {
   test(`${prefix || 'root/'} Firestore rules do not grant write access to every signed-in user`, () => {
     const rules = read(prefix + 'firestore.rules');
     assert.doesNotMatch(rules, /request\.auth\.uid\s*!=\s*null/);
-    assert.equal((rules.match(/request\.auth\.token\.email\s*==\s*'crochetamal64@gmail\.com'/g) || []).length, 2);
+    assert.equal((rules.match(/request\.auth\.token\.email\s*==\s*'crochetamal64@gmail\.com'/g) || []).length, 1);
+    assert.match(rules, /function isAdmin\(\)/);
+    assert.equal((rules.match(/allow create, update, delete: if isAdmin\(\);/g) || []).length, 2);
   });
 }

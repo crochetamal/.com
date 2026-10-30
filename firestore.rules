@@ -1,16 +1,30 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /products/{id} {
-      allow read: if true;
-      // السماح بالكتابة لحساب المسؤولة المسجّل في Firebase Authentication
-      allow write: if request.auth != null
+
+    // الكتابة لحساب الإدارة فقط (بريد مسجّل الدخول عبر Firebase Authentication).
+    // أي مستخدم آخر مسجّل الدخول لا يملك أي صلاحية كتابة.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email != null
         && request.auth.token.email == 'crochetamal64@gmail.com';
     }
+
+    // المنتجات + مستند الإعدادات products/__site_meta__ (المسار الفعلي الذي يستعمله التطبيق)
+    match /products/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // مسار قديم غير مستعمل في التطبيق؛ يبقى للقراءة العامة وكتابة الإدارة فقط
     match /site/{id} {
       allow read: if true;
-      allow write: if request.auth != null
-        && request.auth.token.email == 'crochetamal64@gmail.com';
+      allow create, update, delete: if isAdmin();
+    }
+
+    // أي مسار آخر: ممنوع
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
