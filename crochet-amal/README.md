@@ -1,6 +1,6 @@
 # Crochet.Amal: متجر كروشيه (GitHub Pages)
 
-موقع ثابت (HTML + CSS + JavaScript) بدون خادم أو قاعدة بيانات. الطلبات تتم عبر واتساب: https://wa.me/212700278798
+موقع ثابت (HTML + CSS + JavaScript) مع مزامنة اختيارية عبر Firebase Firestore. الطلبات تتم عبر واتساب: https://wa.me/212700278798
 
 ## الملفات
 - `index.html`, `css/style.css`, `js/app.js`: الموقع ولوحة التحكم
@@ -15,15 +15,15 @@
 4. بعد دقيقة يظهر الموقع على `https://USERNAME.github.io/crochet-amal/`. كل المسارات نسبية فتعمل تحت هذا الرابط.
 
 ## لوحة التحكم
-افتحي صفحة المشرفة المنفصلة: `https://crochetamal.github.io/.com/admin.html` (لا يوجد أي زر لها في المتجر، احفظي الرابط) ثم أدخلي كلمة المرور المتفق عليها. 
+افتحي صفحة المشرفة المنفصلة: `https://crochetamal.github.io/.com/admin.html` (لا يوجد أي زر لها في المتجر، احفظي الرابط) ثم أدخلي بريد حساب Firebase وكلمة مروره، أو اختاري الوضع المحلي عند الحاجة.
 من اللوحة: إضافة منتج، تعديل الاسم والوصف والثمن (بالدرهم) ورابط الصورة (مع معاينة)، حذف، ترتيب (▲▼)، إخفاء/إظهار، معاينة، ونشر.
 
-## مهم: حدود الاستضافة الثابتة
-- GitHub Pages لا يحفظ شيئًا من المتصفح. تعديلات اللوحة تُحفظ في **localStorage لهذا المتصفح فقط** ولا يراها الزوار الآخرون.
+## مهم: حدود الوضع المحلي على الاستضافة الثابتة
+- GitHub Pages لا يحفظ شيئًا من المتصفح. عند عدم الاتصال بـ Firebase، تعديلات اللوحة تُحفظ على **هذا المتصفح فقط** ولا يراها الزوار الآخرون.
 - كلمة المرور **ليست حماية حقيقية**: الكود يمكن فحصه (يُخزَّن فقط بصمتها SHA-256). هي قفل للراحة فقط. لا تُخزَّن أي بيانات دفع أو بيانات شخصية.
 - لتغيير كلمة المرور: احسبي SHA-256 للكلمة الجديدة وضعيها في `PW_HASH` داخل `js/app.js`.
 
-## كيف تظهر تعديلاتك لكل الزوار
+## كيف تظهر تعديلاتك لكل الزوار في الوضع المحلي
 1. عدّلي المنتجات في اللوحة ثم **نشر التغييرات**.
 2. اضغطي **تصدير JSON** (ينزل `products.json`).
 3. في GitHub افتحي `data/products.json` > Edit (أو Upload files لاستبدال الملف) > Commit.
@@ -39,26 +39,30 @@
 ## ملاحظة
 رابط إنستغرام في `data/site.json` ضمن `social`. لإضافة فيسبوك أو تيك توك أضيفي `"facebook"` أو `"tiktok"` مع الرابط الصحيح.
 
-## ربط Firebase (نشر مباشر لكل الزوار)
-بهذا الربط تصبح التعديلات والصور المرفوعة من لوحة التحكم ظاهرة لكل الزبائن فور الحفظ دون أي زر نشر. الخطة المجانية (Spark) تكفي. لا نستعمل Firebase Storage لأنه يتطلب خطة مدفوعة؛ بدلًا من ذلك تُصغَّر الصورة المرفوعة تلقائيًا وتُحفظ داخل Firestore.
+## ربط Firebase (نشر لكل الزوار)
 
-1. افتحي https://console.firebase.google.com وأنشئي مشروعًا (يمكن إيقاف Analytics).
-2. **Build > Firestore Database > Create database** (موقع قريب مثل `eur3`)، وضع Production.
-3. **Build > Authentication > Get started > Email/Password > Enable**. ثم تبويب **Users > Add user** وأنشئي حساب المسؤولة (بريد وكلمة مرور قوية).
-4. **Authentication > Settings > Authorized domains > Add domain** وأضيفي `crochetamal.github.io`.
-5. **Firestore > Rules**: الصقي محتوى `firestore.rules` واستبدلي `ADMIN_EMAIL@example.com` ببريد المسؤولة ثم **Publish**. هذه القواعد هي الحماية الحقيقية: القراءة للجميع والكتابة لحسابك فقط.
-6. **Project settings > Your apps > Web (</>)** سجّلي تطبيقًا وانسخي `firebaseConfig`.
-7. افتحي `js/firebase-config.js` واستبدلي `null` بالإعدادات، مثل:
-   `window.FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." };`
-8. ارفعي الملفات إلى GitHub. ثم ادخلي من «© 2026» بالبريد وكلمة المرور، واضغطي **نشر الآن** مرة واحدة ليُرفع الكتالوج الحالي إلى Firebase. بعدها كل تعديل يُنشر تلقائيًا.
+الإعدادات الحالية في `js/firebase-config.js` تربط الموقع بمشروع **amale-crochet** وتشغّل Firebase Analytics بالمعرّف `G-CXK9TCS9NH` عند دعم المتصفح له. التحليلات تُحمّل في صفحة المتجر ولوحة التحكم، وفشلها لا يمنع عمل الموقع. هذا التكامل لا يتضمن واجهة للموافقة على ملفات تعريف الارتباط؛ تحققي من متطلبات الخصوصية والموافقة قبل الإطلاق.
 
-ملاحظات: عند تفعيل Firebase لا تُستعمل كلمة المرور المحلية القديمة (الدخول بالبريد). ما دام `FIREBASE_CONFIG` يساوي `null` يعمل الموقع بالوضع المحلي السابق. إن فشل الاتصال بـ Firebase يعرض الموقع كتالوج `data/products.json`.
+الموقع يستخدم **Cloud Firestore** للمنتجات و**Firebase Authentication** لدخول المسؤولة. وجود `databaseURL` في الإعدادات لا يربط الموقع بـ Realtime Database؛ البيانات الموجودة هناك لا تنتقل تلقائيًا إلى Firestore. الصور المرفوعة تُصغَّر وتُحفظ داخل Firestore، وليس في Firebase Storage.
 
+لإكمال الربط في [Firebase Console](https://console.firebase.google.com/) لمشروع **amale-crochet**:
+
+1. من **Build > Firestore Database** أنشئي قاعدة Firestore إن لم تكن موجودة.
+2. من **Build > Authentication** فعّلي **Email/Password** وأنشئي حساب المسؤولة ببريد وكلمة مرور قوية قبل السماح بالتسجيل للآخرين.
+3. من **Authentication > Settings > Authorized domains** أضيفي نطاق الموقع، مثل `crochetamal.github.io`.
+4. افتحي `firestore.rules` وتحققي أن البريد `crochetamal64@gmail.com` هو بريد حساب المسؤولة، أو استبدليه بالبريد الصحيح في الدالة `isAdmin`. وإذا غيّرتِ البريد، حدّثي أيضًا `ADMIN_EMAIL` في نسخ `js/app.js` لتتطابق رسائل الأخطاء. ثم انسخي القواعد إلى **Firestore Database > Rules** واضغطي **Publish**. تعديل الملف في المستودع وحده لا يطبّق القواعد على Firebase. القواعد تسمح بالقراءة للجميع والكتابة لحساب البريد المحدد فقط؛ احجزي هذا الحساب أولًا، واستخدام UID ثابت للمسؤولة أكثر أمانًا إن كان متاحًا.
+5. انشري ملفات الموقع، وسجّلي الدخول إلى `admin.html` بحساب Firebase. احفظي أو انشري الكتالوج من اللوحة لرفعه إلى Firestore. تظهر التعديلات للزوار عند تحميل الصفحة أو تحديثها.
+
+إذا فشل الاتصال بـ Firebase يبقى الموقع متاحًا بالبيانات المحلية أو الكتالوج الأصلي، وتبقى التعديلات المحلية على الجهاز فقط إلى أن تُنشر سحابيًا. إعدادات Firebase على الويب عامة وليست كلمة مرور؛ الحماية الفعلية تعتمد على قواعد Firestore المنشورة. يمكن تعطيل Firebase بجعل `window.FIREBASE_CONFIG = null`، أو تعطيل Analytics بإزالة `measurementId`.
+
+## اختبار الإعدادات محليًا
+
+شغّلي `node --test tests/firebase-config.test.cjs` من جذر المستودع لاختبار الإعدادات وتهيئة Firebase دون الاتصال بالخدمات الخارجية.
 
 ## ملاحظات النشر بعد إصلاح المزامنة
-- `js/sync-core.js` يحوي منطق القراءة/النشر، و`js/app.js` الواجهة. الموقع المنشور هو **جذر المستودع** (`index.html` و`admin.html` و`js/`)؛ مجلد `crochet-amal/` و`app.js` في الجذر نسخ مطابقة احتياطية.
+
+- `js/sync-core.js` يحوي منطق القراءة والنشر، و`js/app.js` الواجهة. الموقع المنشور هو **جذر المستودع**؛ مجلد `crochet-amal/` و`app.js` في الجذر نسخ احتياطية.
 - مسارات Firestore: `products/{id}` لكل منتج، و`products/__site_meta__` لإعدادات الواجهة (`hero`, `revision`, `productIds`).
 - حالة النشر تظهر في الشارة: **منشور سحابيًا** / **تعديلات غير منشورة** / **جارٍ النشر** / **فشل النشر**. عند الفشل تبقى التعديلات على الجهاز ويمكن «إعادة محاولة النشر».
-- **قواعد Firestore**: الصقي محتوى `firestore.rules` في Firebase Console › Firestore › Rules ثم Publish. الكتابة مقصورة على `crochetamal64@gmail.com`.
-- يُنصح بتعطيل التسجيل الذاتي: Authentication › Settings › User actions › إلغاء «Enable create (sign-up)».
-- الاختبارات: `node --test tests/sync.test.js tests/rules.static.test.js` و`node tests/browser.e2e.js` (يحتاج Playwright)، و`tests/rules.emulator.test.js` يحتاج Firebase Emulator.
+- يُنصح بتعطيل التسجيل الذاتي من **Authentication > Settings > User actions** بعد إنشاء حساب المشرفة.
+- اختبارات المزامنة والقواعد: `node --test tests/sync.test.js tests/rules.static.test.js`. اختبار المتصفح `tests/browser.e2e.js` يحتاج Playwright، و`tests/rules.emulator.test.js` يحتاج Firebase Emulator.

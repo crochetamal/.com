@@ -453,13 +453,14 @@ async function loadLocalState() {
 async function fbInit() {
   const cfg = window.FIREBASE_CONFIG;
   if (!cfg || !cfg.projectId) return;
-  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const base = window.FIREBASE_SDK_BASE || 'https://www.gstatic.com/firebasejs/13.1.0/';
   const [appMod, fsMod, auMod] = await Promise.all([
     import(base + 'firebase-app.js'),
     import(base + 'firebase-firestore.js'),
     import(base + 'firebase-auth.js')
   ]);
-  const app = appMod.getApps && appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(cfg);
+  const app = appMod.getApps().find((candidate) => candidate.name === '[DEFAULT]')
+    || appMod.initializeApp(cfg);
   const db = fsMod.initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
   const auth = auMod.getAuth(app);
 
