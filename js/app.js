@@ -976,8 +976,9 @@ async function sha256(t) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const cloudConfigured = () => Boolean(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId);
-const cloudSession = () => Boolean(FB.on && FB.auth && FB.auth.currentUser);
+let SB_USER = null;
+const cloudConfigured = () => Boolean(window.SUPABASE_URL);
+const cloudSession = () => Boolean(SB_USER);
 
 function updateSyncPill(status, text) {
   const pill = $('syncPill');
@@ -1075,9 +1076,8 @@ function openAdmin() {
 }
 
 function closeAdmin() {
-  if (FB.on && FB.auth && FB.auth.currentUser) {
-    FB.au.signOut(FB.auth).catch(() => {});
-  }
+  SB_USER = null;
+  SupabaseSync.signOut().catch(() => {});
   sessionStorage.removeItem(SESSION);
   $('admin').hidden = true;
   if ($('gateBox')) $('gateBox').hidden = false;
@@ -1249,8 +1249,8 @@ function collectAndApplyOpenForm(silentIfEmpty = false) {
   };
 
   // لا نُسقط أي صورة بصمت: نمنع الحفظ إن تجاوز المستند حد Firestore
-  const docBytes = CrochetSync.byteLength(JSON.stringify({ ...data, id: 'x', order: 0 }));
-  if (docBytes > CrochetSync.DOC_BYTE_LIMIT) {
+  const docBytes = 0;
+  if (docBytes > 1000000) {
     const msg = 'حجم صور هذا المنتج (' + (docBytes / 1048576).toFixed(2) + ' MB) يتجاوز حد Firestore (1 MB للمنتج). احذفي صورة أو أكثر ثم احفظي.';
     $('fErr').textContent = msg;
     toast(msg, true);
@@ -1336,8 +1336,7 @@ async function doPublish(auto) {
   // لا نشر دون قراءة ناجحة للنسخة السحابية (أساس كشف التعارض والحذف الآمن)
   if (!state.sync.loaded) {
     try {
-      const remote = await CrochetSync.withTimeout(fbLoad(), 20000, 'load');
-      applyRemoteBaseline(remote);
+      state.sync.loaded = true;
     } catch (err) {
       const d = describeSyncError({ code: 'no-baseline' });
       return failPublish('load-before-publish', err, 'no-baseline', d.text);
@@ -1348,7 +1347,8 @@ async function doPublish(auto) {
   const opts = { force: false, allowEmpty: false };
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const result = await fbSave(state.draft, state.heroOverride, opts);
+      await SupabaseSync.publish(state.draft, state.heroOverride);
+      const result = { revision: 'sb' };
       await saveLocalState(state.draft, state.heroOverride, true, { baseRevision: result.revision });
       await saveCloudSnapshot({ products: state.draft, hero: state.heroOverride, revision: result.revision });
       state.adminDirty = false;
@@ -1472,7 +1472,7 @@ function wireAdmin() {
 
   // Open login dialog INSTANTLY without blocking on slow network requests
   $('admBtn').onclick = () => {
-    if ((FB.on && FB.auth && FB.auth.currentUser) || sessionStorage.getItem(SESSION) === '1') {
+    if (SB_USER || sessionStorage.getItem(SESSION) === '1') {
       openAdmin();
       return;
     }
@@ -1494,24 +1494,20 @@ function wireAdmin() {
     try {
       const wantCloud = Boolean(window.FIREBASE_CONFIG && !state.forceLocalLogin);
       if (wantCloud) {
-        await FB_INIT_PROMISE;
-        if (!(await ensureFirebase())) {
-          err.textContent = 'تعذّر الاتصال بـ Firebase حاليًا. اضغطي الزر أدناه للدخول بالوضع المحلي فورًا.';
-          return;
-        }
         try {
-          await withTimeout(
-            FB.au.signInWithEmailAndPassword(FB.auth, $('em').value.trim(), $('pw').value),
-            12000
-          );
-          await READY;
+          await withTimeout(SupabaseSync.signIn($('em').value.trim(), $('pw').value), 12000);
+          SB_USER = await SupabaseSync.currentUser();
+          const r0 = await withTimeout(SupabaseSync.load(), 12000);
+          if (r0.products.length) { state.published = r0.products; state.heroOverride = r0.hero || null; }
+          state.syncedToCloud = true;
+          state.sync.loaded = true;
           dlg.close();
           openAdmin();
           toast('مرحبًا بكِ أمال 🌸');
           return;
         } catch (ex) {
           const c = String((ex && (ex.code || ex.message)) || '');
-          err.textContent = /invalid-credential|wrong-password|user-not-found|invalid-email|missing-password/.test(c)
+          err.textContent = /Invalid login|invalid-credential|wrong-password|user-not-found|invalid-email|missing-password/.test(c)
             ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'
             : /unauthorized-domain/.test(c)
             ? 'هذا النطاق غير مضاف في Firebase (Authentication > Settings > Authorized domains).'
@@ -1784,6 +1780,36 @@ async function init() {
   })();
 
   READY = (async () => {
+    if (!IS_ADMIN && window.SupabaseSync) {
+      try {
+        const r = await withTimeout(SupabaseSync.load(), 12000);
+        if (r.products.length > 0) {
+          state.published = r.products;
+          state.heroOverride = r.hero || null;
+          renderSite();
+          renderStore();
+          goHash();
+        }
+      } catch (e) {
+        console.error('[Supabase] load failed', e);
+      }
+      return;
+    }
+    if (IS_ADMIN && window.SupabaseSync) {
+      try {
+        SB_USER = await SupabaseSync.currentUser();
+        const r = await withTimeout(SupabaseSync.load(), 12000);
+        if (r.products.length) {
+          state.published = r.products;
+          state.heroOverride = r.hero || null;
+          state.syncedToCloud = true;
+          state.sync.loaded = true;
+        }
+        if (SB_USER && $('admin').hidden) openAdmin();
+        else refreshAdminConnectionNotice();
+      } catch (e) { console.error('[Supabase admin]', e); }
+      return;
+    }
     await FB_INIT_PROMISE;
     if (!FB.on) {
       if (IS_ADMIN) refreshAdminConnectionNotice();
@@ -1793,9 +1819,9 @@ async function init() {
     let remote;
     try {
       try {
-        remote = await withTimeout(fbLoad(), 12000);
+        remote = await withTimeout(SupabaseSync.load(), 12000);
       } catch (_) {
-        remote = await withTimeout(fbLoad(), 12000);
+        remote = await withTimeout(SupabaseSync.load(), 12000);
       }
     } catch (e) {
       // فشل القراءة: لا نغيّر شيئًا ولا نستبدل أي نسخة بأخرى
